@@ -80,7 +80,7 @@ export const timeline: TimelineMessage[] = [
     n: 5,
     role: "claude",
     time: "Day 1 · 14:42",
-    text: "스택 확정 — Next.js + React Three Fiber + Vercel. 서버는 Next API 라우트로 스타링크/지진 데이터를 프록시·캐시(CORS·레이트리밋·키 노출 방지). 배포는 민서 Vercel 계정으로 연결해서 진짜 민서가 만든 게 되도록.",
+    text: "스택 확정 — Next.js + React Three Fiber + Vercel. 서버는 Next API 라우트로 스타링크/지진 데이터를 프록시·캐시(CORS·레이트리밋·키 노출 방지).",
   },
   {
     n: 6,
@@ -123,7 +123,7 @@ export const timeline: TimelineMessage[] = [
   {
     n: 9,
     role: "claude",
-    text: "맞는 방향. 신호를 SignalSource '플러그인'으로 만들어 런타임에 켜고/끄고/교체할 수 있는 레지스트리 구조로 가기로 함. 어떤 형태가 최선인지 여러 관점(최소·확장성·영속화)으로 병렬 설계→적대적 비평→종합 중. 동시에 진짜 3D 지구(텍스처·실시간 낮밤·드래그 회전)를 구현함. 데이터 계층은 나중에 Supabase가 무중단으로 붙도록 어댑터 경계를 남겨둘 예정.",
+    text: "맞는 방향. 신호를 SignalSource '플러그인'으로 만들어 런타임에 켜고/끄고/교체할 수 있는 레지스트리 구조로 가기로 함. 어떤 형태가 최선인지 여러 관점(최소·확장성·영속화)으로 병렬 설계→적대적 비평→종합 중. 동시에 진짜 3D 지구(텍스처·실시간 낮밤·드래그 회전)를 구현함. 데이터 계층은 나중에 외부 저장소(DB)로 무중단 교체되도록 어댑터 경계를 남겨둘 예정.",
     long: true,
   },
 ];
