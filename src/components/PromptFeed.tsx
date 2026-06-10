@@ -20,7 +20,7 @@ export function PromptFeed() {
             민서 × 클로드 · 프롬프트 {pairCount}묶음 (= 보고서 본문)
           </p>
           <p className="truncate text-[10px] text-white/25">
-            ※ 민서 발화의 비속어·맞춤법·오타는 일부 다듬음
+            ※ 민서 발화는 맞춤법·오타를 일부 다듬음
           </p>
         </div>
         <button

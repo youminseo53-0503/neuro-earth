@@ -11,7 +11,7 @@ import type { SignalSource, StimulusEvent } from "../types";
 type Sat = ReturnType<typeof twoline2satrec>;
 
 const SAMPLE = 300; // 전체 1만+ 기 중 균등 샘플(성능)
-const PER_FRAME = 45; // 프레임당 자극 방출(회전)
+const PER_FRAME = 22; // 프레임당 자극 방출(회전) — 과발광 방지
 
 /**
  * 실시간 스타링크 (CelesTrak). 진짜 데이터 + 진짜 궤도 계산.
@@ -71,7 +71,7 @@ export function createStarlinkSource(): SignalSource {
           const lat = degreesLat(geo.latitude);
           const lon = degreesLong(geo.longitude);
           if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-          out.push({ lat, lon, strength: 0.85, radius: 0.1 });
+          out.push({ lat, lon, strength: 0.5, radius: 0.09 });
         } catch {
           // 손상된 satrec은 건너뜀
         }

@@ -3,12 +3,14 @@ import { createLocalSource } from "./localSource";
 import { createFlightSource } from "./flightSource";
 import { createQuakeSource } from "./sources/quakes";
 import { createStarlinkSource } from "./sources/starlink";
+import { createMarketSource } from "./sources/market";
 
 const FACTORIES: Record<SourceId, () => SignalSource> = {
   local: () => createLocalSource(),
   flight: () => createFlightSource(),
   quakes: () => createQuakeSource(),
   starlink: () => createStarlinkSource(),
+  crypto: () => createMarketSource(),
 };
 
 /**

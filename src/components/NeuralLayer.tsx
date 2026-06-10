@@ -66,6 +66,7 @@ export function NeuralLayer() {
 
   const nodesRef = useRef<THREE.InstancedMesh>(null);
   const color = useMemo(() => new THREE.Color(), []);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
   const tickRef = useRef(0);
   const frameRef = useRef(0);
 
@@ -99,12 +100,13 @@ export function NeuralLayer() {
     if (!mesh || !config.showNet) return;
     const tick = tickRef.current++;
     const weightMode = config.colorMode === "weight";
+    const gain = config.gain ?? 1;
 
     for (const src of sources) {
       if (!src.enabled) continue;
       const events = src.poll(tick);
       for (const ev of events)
-        net.injectStimulus(ev.lat, ev.lon, ev.strength, ev.radius);
+        net.injectStimulus(ev.lat, ev.lon, ev.strength * gain, ev.radius);
     }
     net.step();
 
@@ -119,8 +121,15 @@ export function NeuralLayer() {
         color.setRGB(0.55 + act * 0.45, 0.08 + act * 0.27, 0.4 + act * 0.45);
       }
       mesh.setColorAt(i, color);
+      // 크기 = vitality (자주 쓰인 허브는 커지고, 안 쓰이면 점으로 줄어듦)
+      const s = 0.18 + n.vitality * 1.1;
+      dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
+      dummy.scale.setScalar(s);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.instanceMatrix.needsUpdate = true;
 
     // 시냅스 색
     const arr = lineGeom.attributes.color.array as Float32Array;

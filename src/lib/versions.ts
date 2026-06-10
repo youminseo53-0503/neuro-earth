@@ -18,6 +18,8 @@ export interface VizConfig {
   jitter: number;
   /** 활성 신호 소스 */
   sources: SourceId[];
+  /** 신호 세기 배율 (버전별 발광 강도 조절). 기본 1 */
+  gain?: number;
 }
 
 export interface VizVersion {
@@ -66,10 +68,22 @@ export const VERSIONS: VizVersion[] = [
     config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["quakes"] },
   },
   {
-    id: "v-starlink",
+    id: "v-starlink-bug",
     n: 23,
-    label: "실데이터 (스타링크+지진)",
-    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["starlink", "quakes"] },
+    label: "스타링크 (버그·밋밋)",
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["starlink", "quakes"], gain: 0.1 },
+  },
+  {
+    id: "v-starlink-fix",
+    n: 24,
+    label: "스타링크 (수정)",
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["starlink", "quakes"], gain: 0.8 },
+  },
+  {
+    id: "v-market",
+    n: 25,
+    label: "실시간 시장 (암호화폐·라이브)",
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["crypto"], gain: 1 },
   },
 ];
 

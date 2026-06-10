@@ -32,6 +32,8 @@ export interface NeuronNode {
   refrac: number;
   /** 시각화용 발화 잔광 0..1 */
   flash: number;
+  /** 활력(누적 활동) = 노드 크기. 자주 쓰이면 자라고(허브), 안 쓰이면 점으로 줄어듦 */
+  vitality: number;
 }
 
 export interface Synapse {
@@ -147,6 +149,7 @@ export class PlasticityNetwork {
         fired: false,
         refrac: 0,
         flash: 0,
+        vitality: 0,
       });
     }
 
@@ -241,6 +244,7 @@ export class PlasticityNetwork {
         nd.fired = false;
         nd.a *= decay * 0.5;
         nd.flash *= 0.88;
+        nd.vitality *= 0.997;
         this.injected[n] = 0;
         totalA += nd.a;
         continue;
@@ -259,6 +263,9 @@ export class PlasticityNetwork {
         nd.a = a > 1.5 ? 1.5 : a;
         nd.flash *= 0.88;
       }
+      nd.vitality = nd.fired
+        ? Math.min(1.6, nd.vitality + 0.18)
+        : nd.vitality * 0.997;
       totalA += nd.a;
     }
 
