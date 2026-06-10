@@ -32,6 +32,7 @@ export function HUD() {
             <Row label="노드 수" value={e ? `${e.nodes}` : "—"} accent="#00e5ff" />
             <Row label="시냅스 수" value={e ? `${e.synapses}` : "—"} accent="#00ff9c" />
             <Row label="발화" value={e ? `${e.firing}` : "—"} />
+            <Row label="호르몬" value={e ? e.hormone.toFixed(0) : "—"} accent="#ffb84d" />
             <Row label="탄생 / 죽음" value={e ? `+${e.births} / -${e.deaths}` : "—"} />
           </>
         ) : (

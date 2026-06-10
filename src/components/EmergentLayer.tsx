@@ -15,6 +15,7 @@ const NODE_SIZE = 0.014;
 const ROUTE_CAP = 700; // 동시 렌더 노선 수
 const ARC_SEG = 18; // 노선 아크 분할
 const ROUTE_BULGE = 0.2; // 아크가 지표 위로 부푸는 정도
+const GOLD = new THREE.Color(1.0, 0.72, 0.25); // 호르몬 황금빛
 
 function slerp(a: ENode, b: ENode, t: number): [number, number, number] {
   let dot = a.x * b.x + a.y * b.y + a.z * b.z;
@@ -36,11 +37,17 @@ export function EmergentLayer() {
   const earthShown = earthVisible && config.showEarth;
   const setE = useMetrics((s) => s.setEmergent);
 
-  const sig = config.sources.join(",") + "|" + (config.intrinsic ? "i" : "");
+  const sig =
+    config.sources.join(",") +
+    "|" + (config.intrinsic ? "i" : "") +
+    (config.hormone ? "h" : "");
   const {
     net, sources, lineGeom, lineMat, posArr, colArr, routeGeom, routeMat, rPos, rCol,
   } = useMemo(() => {
-    const net = new EmergentNetwork({ spontaneous: config.intrinsic ? 0.006 : 0 });
+    const net = new EmergentNetwork({
+      spontaneous: config.intrinsic ? 0.01 : 0,
+      hormoneProb: config.hormone ? 0.02 : 0,
+    });
     const sources = makeSources(config.sources);
 
     const cap = net.cfg.maxSyn;
@@ -123,6 +130,7 @@ export function EmergentLayer() {
       const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
       if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
       else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
+      if (n.mod > 0.03) color.lerp(GOLD, Math.min(0.8, n.mod * 0.6)); // 호르몬 물듦
       mesh.setColorAt(i, color);
       const s = 0.25 + n.vitality * 1.1;
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);

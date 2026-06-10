@@ -26,6 +26,8 @@ export interface VizConfig {
   engine?: "grid" | "emergent";
   /** emergent에서 내재 활동(스스로 발화) 켜기 — 자극 없어도 살아있는 뇌 */
   intrinsic?: boolean;
+  /** 호르몬(느린 확산·장기 유지 modulation) 켜기 — 연쇄반응 */
+  hormone?: boolean;
 }
 
 export interface VizVersion {
@@ -139,6 +141,22 @@ export const VERSIONS: VizVersion[] = [
       gain: 1,
       engine: "emergent",
       intrinsic: true,
+    },
+  },
+  {
+    id: "v-hormone",
+    n: 34,
+    label: "호르몬 + 연쇄반응 (항공·살아있는 뇌)",
+    config: {
+      showEarth: true,
+      showNet: true,
+      colorMode: "act",
+      jitter: 4,
+      sources: ["flightslive"],
+      gain: 1,
+      engine: "emergent",
+      intrinsic: true,
+      hormone: true,
     },
   },
 ];

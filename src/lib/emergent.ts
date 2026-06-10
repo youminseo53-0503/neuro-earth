@@ -50,6 +50,7 @@ export interface ENode {
   flash: number;
   lastActive: number;
   deg: number;
+  mod: number; // 호르몬(neuromodulation) 농도 — 느리게 확산·감쇠, 흥분성 끌어올림
 }
 
 export interface ESyn {
@@ -82,6 +83,11 @@ export interface EConfig {
   refractoryTicks: number;
   nodeLifespan: number; // 이 틱 이상 비활성+저활력이면 죽음
   spontaneous: number; // 내재 활동: 매 틱 노드가 스스로 발화 시도할 확률(0=순수 자극반응)
+  hormoneProb: number; // 호르몬 분비 확률(0=끔)
+  hormoneRelease: number; // 분비 시 mod 증가량
+  hormoneDecay: number; // mod 감쇠(느림 → 오래 유지)
+  diffuseRate: number; // mod 시냅스 확산율
+  modDrive: number; // mod가 흥분성에 더하는 양
   seed: number;
 }
 
@@ -92,19 +98,24 @@ export const EMERGENT_DEFAULT: EConfig = {
   connectRadius: 0.18,
   birthProb: 0.6,
   connectProb: 0.5,
-  growthProb: 0.3,
+  growthProb: 0.2,
   growthOffset: 0.11,
   maxDeg: 14,
   inhibitoryRatio: 0.22,
-  decay: 0.85,
-  threshold: 0.5,
-  ltp: 0.05,
+  decay: 0.88, // 활동 유지하되 무한 메아리는 방지
+  threshold: 0.38, // 전파되되 몇 단 뒤 꺼지게(연쇄 ~3~5단)
+  ltp: 0.06,
   ltd: 0.02,
   prune: 0.002,
   minW: 0.04,
   refractoryTicks: 4,
   nodeLifespan: 220,
   spontaneous: 0,
+  hormoneProb: 0,
+  hormoneRelease: 1.6,
+  hormoneDecay: 0.9993, // 매우 느림 → 한참 유지
+  diffuseRate: 0.16,
+  modDrive: 0.28,
   seed: 20260611,
 };
 
@@ -115,6 +126,7 @@ export interface EMetrics {
   firing: number;
   births: number;
   deaths: number;
+  hormone: number;
 }
 
 export class EmergentNetwork {
@@ -122,7 +134,7 @@ export class EmergentNetwork {
   nodes: ENode[];
   syns: ESyn[];
   tick = 0;
-  metrics: EMetrics = { tick: 0, nodes: 0, synapses: 0, firing: 0, births: 0, deaths: 0 };
+  metrics: EMetrics = { tick: 0, nodes: 0, synapses: 0, firing: 0, births: 0, deaths: 0, hormone: 0 };
 
   private rng: () => number;
   private freeNodes: number[] = [];
@@ -150,6 +162,7 @@ export class EmergentNetwork {
     return {
       alive: false, x: 0, y: 0, z: 0, lat: 0, lon: 0, a: 0, inj: 0, vitality: 0,
       type: 1, threshold: 0.55, refrac: 0, fired: false, flash: 0, lastActive: 0, deg: 0,
+      mod: 0,
     };
   }
 
@@ -177,7 +190,7 @@ export class EmergentNetwork {
     const n = this.nodes[slot];
     n.alive = true;
     n.x = x; n.y = y; n.z = z; n.lat = lat; n.lon = lon;
-    n.a = activation; n.inj = 0; n.vitality = 0.1;
+    n.a = activation; n.inj = 0; n.vitality = 0.1; n.mod = 0;
     n.type = this.rng() < this.cfg.inhibitoryRatio ? -1 : 1;
     n.threshold = this.cfg.threshold * (0.85 + this.rng() * 0.3);
     n.refrac = 0; n.fired = false; n.flash = 0;
@@ -191,7 +204,7 @@ export class EmergentNetwork {
     if (slot === undefined) return;
     const s = this.syns[slot];
     s.alive = true; s.i = i; s.j = j;
-    s.w = w ?? 0.15 + this.rng() * 0.2;
+    s.w = w ?? 0.25 + this.rng() * 0.25;
     s.sign = this.nodes[i].type;
     s.act = 0;
     s.route = route;
@@ -252,7 +265,7 @@ export class EmergentNetwork {
   }
 
   step() {
-    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous } = this.cfg;
+    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous, hormoneProb, hormoneRelease, hormoneDecay, diffuseRate, modDrive } = this.cfg;
 
     // 살아있는 노드 목록 갱신
     this.aliveNodeIdx.length = 0;
@@ -269,6 +282,10 @@ export class EmergentNetwork {
       } else {
         e.act *= 0.8;
       }
+      // 호르몬 확산 — 시냅스 따라 천천히 퍼짐(루트 통해 대륙 건넘)
+      const dm = (this.nodes[e.i].mod - this.nodes[e.j].mod) * diffuseRate;
+      this.nodes[e.i].mod -= dm;
+      this.nodes[e.j].mod += dm;
       e.w *= 1 - prune;
       if (e.w < minW) this.killSyn(s);
     }
@@ -285,11 +302,15 @@ export class EmergentNetwork {
         nd.a *= decay * 0.5;
         nd.flash *= 0.88;
         nd.vitality *= 0.997;
+        nd.mod *= hormoneDecay;
         nd.inj = 0;
         continue;
       }
       // 내재 활동 — 자극이 없어도 스스로 발화를 시작(살아있는 뇌)
       if (spontaneous > 0 && this.rng() < spontaneous) nd.inj += 0.7;
+      // 호르몬 — 흥분성을 끌어올림(오래 유지)
+      nd.mod *= hormoneDecay;
+      if (nd.mod > 0) nd.inj += nd.mod * modDrive;
       let a = nd.a * decay + (input.get(idx) ?? 0) + nd.inj;
       nd.inj = 0;
       if (a < 0) a = 0;
@@ -308,6 +329,13 @@ export class EmergentNetwork {
         nd.flash *= 0.88;
         nd.vitality *= 0.997;
       }
+    }
+
+    // 호르몬 분비 — 가끔 발화점에서(없으면 임의 노드) release. 확산은 시냅스 루프가 처리
+    if (hormoneProb > 0 && this.rng() < hormoneProb && this.aliveNodeIdx.length > 0) {
+      const pool = firedThisStep.length > 0 ? firedThisStep : this.aliveNodeIdx;
+      const origin = pool[Math.floor(this.rng() * pool.length)];
+      this.nodes[origin].mod += hormoneRelease;
     }
 
     // 3) 헤브 가소성
@@ -356,10 +384,12 @@ export class EmergentNetwork {
     }
 
     this.tick++;
-    let nodeCount = 0, synCount = 0;
-    for (let i = 0; i < this.nodes.length; i++) if (this.nodes[i].alive) nodeCount++;
+    let nodeCount = 0, synCount = 0, modSum = 0;
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (this.nodes[i].alive) { nodeCount++; modSum += this.nodes[i].mod; }
+    }
     for (let s = 0; s < this.syns.length; s++) if (this.syns[s].alive) synCount++;
-    this.metrics = { tick: this.tick, nodes: nodeCount, synapses: synCount, firing, births: this.bornCount, deaths };
+    this.metrics = { tick: this.tick, nodes: nodeCount, synapses: synCount, firing, births: this.bornCount, deaths, hormone: modSum };
     this.bornCount = 0;
   }
 }
