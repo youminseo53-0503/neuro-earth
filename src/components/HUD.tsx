@@ -7,6 +7,8 @@ import { VERSIONS } from "@/lib/versions";
 /** 왼쪽 씬 위에 떠 있는 실시간 측정 readout. */
 export function HUD() {
   const m = useMetrics((s) => s.metrics);
+  const e = useMetrics((s) => s.emergent);
+  const engine = useViz((s) => s.config.engine ?? "grid");
   const versionId = useViz((s) => s.versionId);
   const version = VERSIONS.find((v) => v.id === versionId);
 
@@ -24,25 +26,27 @@ export function HUD() {
       )}
 
       <div className="mt-3 space-y-0.5 rounded-md border border-panel-border bg-black/40 px-3 py-2 backdrop-blur-sm">
-        <Row label="tick" value={m ? m.tick.toLocaleString() : "—"} />
-        <Row
-          label="발화 노드"
-          value={m ? `${m.firing}` : "—"}
-          accent="#00e5ff"
-        />
-        <Row
-          label="가소성 이벤트/s"
-          value={m ? `${m.plasticityEvents}` : "—"}
-          accent="#00ff9c"
-        />
-        <Row
-          label="평균 가중치"
-          value={m ? m.meanWeight.toFixed(3) : "—"}
-        />
-        <Row
-          label="총 활성도"
-          value={m ? m.totalActivation.toFixed(1) : "—"}
-        />
+        {engine === "emergent" ? (
+          <>
+            <Row label="tick" value={e ? e.tick.toLocaleString() : "—"} />
+            <Row label="노드 수" value={e ? `${e.nodes}` : "—"} accent="#00e5ff" />
+            <Row label="시냅스 수" value={e ? `${e.synapses}` : "—"} accent="#00ff9c" />
+            <Row label="발화" value={e ? `${e.firing}` : "—"} />
+            <Row label="탄생 / 죽음" value={e ? `+${e.births} / -${e.deaths}` : "—"} />
+          </>
+        ) : (
+          <>
+            <Row label="tick" value={m ? m.tick.toLocaleString() : "—"} />
+            <Row label="발화 노드" value={m ? `${m.firing}` : "—"} accent="#00e5ff" />
+            <Row
+              label="가소성 이벤트/s"
+              value={m ? `${m.plasticityEvents}` : "—"}
+              accent="#00ff9c"
+            />
+            <Row label="평균 가중치" value={m ? m.meanWeight.toFixed(3) : "—"} />
+            <Row label="총 활성도" value={m ? m.totalActivation.toFixed(1) : "—"} />
+          </>
+        )}
       </div>
     </div>
   );

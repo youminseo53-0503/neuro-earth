@@ -4,8 +4,10 @@ import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { EARTH_RADIUS, getSunDirection } from "@/lib/geo";
+import { useViz } from "@/store/useViz";
 import { Earth } from "./Earth";
 import { NeuralLayer } from "./NeuralLayer";
+import { EmergentLayer } from "./EmergentLayer";
 
 /**
  * 왼쪽 3/4 3D 씬.
@@ -15,6 +17,7 @@ import { NeuralLayer } from "./NeuralLayer";
 export default function GlobeScene() {
   // 실시간 낮밤: 태양 직하점 방향에 directional light
   const sun = useMemo(() => getSunDirection(), []);
+  const engine = useViz((s) => s.config.engine ?? "grid");
 
   return (
     <Canvas camera={{ position: [0, 0, 6], fov: 45 }} dpr={[1, 2]}>
@@ -33,8 +36,8 @@ export default function GlobeScene() {
         <Earth />
       </Suspense>
 
-      {/* 신경 가소성 망 — 지구를 꺼도 남는다 */}
-      <NeuralLayer />
+      {/* 신경 가소성 망 — 지구를 꺼도 남는다 (엔진은 버전 설정) */}
+      {engine === "emergent" ? <EmergentLayer /> : <NeuralLayer />}
 
       <OrbitControls
         enablePan={false}

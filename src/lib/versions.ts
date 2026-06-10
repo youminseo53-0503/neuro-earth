@@ -22,6 +22,8 @@ export interface VizConfig {
   gain?: number;
   /** 노드 크기를 vitality(누적 활동)로 키울지. 끄면 고정 크기(옛 버전 원본) */
   grow?: boolean;
+  /** 렌더 엔진: grid=고정격자(기존) / emergent=노드가 데이터에서 생멸 */
+  engine?: "grid" | "emergent";
 }
 
 export interface VizVersion {
@@ -92,6 +94,20 @@ export const VERSIONS: VizVersion[] = [
     n: 26,
     label: "노드 성장 (가소성·크기 변화)",
     config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["crypto"], gain: 1, grow: true },
+  },
+  {
+    id: "v-emergent",
+    n: 28,
+    label: "Emergent 엔진 (빈 지구에서 자라남)",
+    config: {
+      showEarth: true,
+      showNet: true,
+      colorMode: "act",
+      jitter: 4,
+      sources: ["crypto", "quakes"],
+      gain: 1,
+      engine: "emergent",
+    },
   },
 ];
 
