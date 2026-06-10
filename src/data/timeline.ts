@@ -17,6 +17,12 @@ export interface TimelineMessage {
   text: string;
   /** 긴 글이면 기본 접힘 */
   long?: boolean;
+  /** 'choice' = 민서가 타이핑이 아니라 선택지에서 고른 것 */
+  kind?: "choice";
+  /** 선택지들 (kind==='choice') */
+  options?: string[];
+  /** 고른 선택 (kind==='choice') */
+  chosen?: string;
 }
 
 export const timeline: TimelineMessage[] = [
@@ -335,7 +341,14 @@ export const timeline: TimelineMessage[] = [
   {
     n: 28,
     role: "minseo",
-    text: "완전히 빈 지구에서 시작하는 순수 emergent로 가자. 노드 0개에서 데이터로만 자라나게.",
+    kind: "choice",
+    text: "새 emergent 엔진을 어떻게 시작할까?",
+    options: [
+      "완전히 빈 지구에서 (순수 emergent)",
+      "희소한 씨앗 + 성장 (하이브리드)",
+      "먼저 설계 자세히 듣고",
+    ],
+    chosen: "완전히 빈 지구에서 (순수 emergent)",
   },
   {
     n: 28,
@@ -353,6 +366,18 @@ export const timeline: TimelineMessage[] = [
     n: 29,
     role: "claude",
     text: "정확히 짚음 — 지금은 순수 자극-반응이라 자식 점이 스스로 발화를 못 하고, 데이터 없으면 결국 죽음. 진짜 뇌처럼 '내재 활동(spontaneous firing)'을 넣음: 자극이 없어도 노드가 스스로 발화하고, 연결된 점들이 메아리(reverberation)로 자가지속함. → 자식 점도 스스로 발화하는 소스가 되고, 자극이 멈춰도 구조가 안 죽고 살아있음. 데이터는 '만드는 게 아니라 모양을 잡아주는' 역할. 검증: spontaneous 0.006에서 자극 중 ~330노드 자라고, 자극을 끊어도 ~200노드로 자가지속(발화 지속, 폭주·전체포화 없음). 0.02는 전부 불멸이 돼 캡까지 차서(데이터 모양 잃음) 기각. 'Emergent + 내재활동' 버전으로 추가, 기존 순수 자극-반응 버전은 보존.",
+    long: true,
+  },
+  {
+    n: 30,
+    role: "minseo",
+    text: "그 내재에 대한 증거는 없는 거지? 음, 결국 암호화폐는 너무 작은 신호가 되는 거 아닐까? 차라리 아까 하던 항공 그걸로 하고, 공항에서 출발하는 비행기와 도착하는 비행기 수로 유추하는 유동인구의 수를 공항 거점으로(이건 미리 점 만들어두던지) 하면 좋은 모델로 쓸 수 있는 거 아닐까? 근데 그 데이터를,,, 가져올 수 있어?",
+    long: true,
+  },
+  {
+    n: 30,
+    role: "claude",
+    text: "① 내재 활동 증거: 있어 — '자극 없이도 뇌가 스스로 발화하는 것'(resting-state / spontaneous activity, default mode network)은 신경과학에서 잘 확립된 사실이야. 다만 우리 구현(랜덤 킥)은 그 개념의 단순화 모델이지 특정 논문 수치를 재현한 건 아님. ② 항공/공항 유동인구 모델: 진짜 좋은 모델 — 공항을 거점 점으로 미리 깔고 출발/도착 항공편 수로 자극(유동인구 프록시). 솔직히 '진짜' 항공 데이터는 무료 API가 다 키/계정이 필요하고 익명은 너무 빡빡함(OpenSky 익명 ≈ 14분에 한 번꼴). OpenSky 무료 계정 하나면 라이브 항공기 위치(10초 갱신)를 받아 공항 근처 비행기 수로 유동인구 추정 가능 → 즉 이것도 '계정(무료 API 키)' 하나 필요(Vercel/DB보단 가벼움). 지금은 시뮬 공항모델로 먼저 보여주고 계정 생기면 진짜로 교체하는 게 현실적.",
     long: true,
   },
 ];

@@ -19,6 +19,44 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
   const shown =
     collapsible && !open ? msg.text.slice(0, PREVIEW_LEN).trimEnd() + "…" : msg.text;
 
+  // 선택지에서 고른 것 (타이핑 아님) — 별도 카드로
+  if (msg.kind === "choice") {
+    return (
+      <div className="flex w-full flex-col items-end gap-1">
+        <div className="flex flex-row-reverse items-center gap-2 px-1 text-[11px] tracking-wide">
+          <span className="font-mono font-semibold" style={{ color: "var(--minseo)" }}>
+            #{String(msg.n).padStart(2, "0")}
+          </span>
+          <span className="font-semibold text-white/80">민서</span>
+          <span className="rounded bg-amber-400/15 px-1.5 py-px text-[10px] text-amber-300/80">
+            선택
+          </span>
+        </div>
+        <div className="max-w-[88%] rounded-2xl rounded-tr-sm bg-[#3a3420] px-3.5 py-2.5 ring-1 ring-amber-400/25">
+          <div className="mb-2 text-[12px] text-amber-100/70">{msg.text}</div>
+          <div className="flex flex-col gap-1">
+            {msg.options?.map((o) => {
+              const sel = o === msg.chosen;
+              return (
+                <div
+                  key={o}
+                  className={`rounded px-2 py-1 text-[12px] ${
+                    sel
+                      ? "bg-neon-green/15 text-neon-green ring-1 ring-neon-green/40"
+                      : "text-white/30"
+                  }`}
+                >
+                  {sel ? "● " : "○ "}
+                  {o}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       id={isMinseo ? undefined : `feed-${msg.n}`}
