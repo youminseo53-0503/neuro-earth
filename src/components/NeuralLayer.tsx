@@ -76,6 +76,24 @@ export function NeuralLayer() {
     mesh.instanceMatrix.needsUpdate = true;
   }, [nodeMatrices]);
 
+  // 외부 데이터 소스(예: 지진)의 refresh를 벽시계로 구동 (렌더 루프와 독립)
+  useEffect(() => {
+    const acs: AbortController[] = [];
+    const timers: ReturnType<typeof setInterval>[] = [];
+    for (const src of sources) {
+      if (!src.refresh) continue;
+      const ac = new AbortController();
+      acs.push(ac);
+      const run = () => src.refresh!({ signal: ac.signal }).catch(() => {});
+      run();
+      timers.push(setInterval(run, src.refreshMs ?? 60_000));
+    }
+    return () => {
+      timers.forEach(clearInterval);
+      acs.forEach((c) => c.abort());
+    };
+  }, [sources]);
+
   useFrame(() => {
     const mesh = nodesRef.current;
     if (!mesh || !config.showNet) return;

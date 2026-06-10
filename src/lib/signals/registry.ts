@@ -1,15 +1,17 @@
 import type { SignalSource, SourceId } from "./types";
 import { createLocalSource } from "./localSource";
 import { createFlightSource } from "./flightSource";
+import { createQuakeSource } from "./sources/quakes";
 
 const FACTORIES: Record<SourceId, () => SignalSource> = {
   local: () => createLocalSource(),
   flight: () => createFlightSource(),
+  quakes: () => createQuakeSource(),
 };
 
 /**
  * id 목록으로 신호 소스 생성.
- * 나중에 quake/starlink를 FACTORIES에 추가하면 끝(엔진·렌더는 그대로).
+ * 새 신호 추가 = sources/<id>.ts 만들고 여기 FACTORIES에 한 줄(엔진·렌더는 그대로).
  */
 export function makeSources(ids: SourceId[]): SignalSource[] {
   return ids.map((id) => FACTORIES[id]());

@@ -7,7 +7,7 @@
 // 런타임에 enabled로 켜고/끄고/교체한다.
 // ─────────────────────────────────────────────────────────────
 
-export type SourceId = "local" | "flight";
+export type SourceId = "local" | "flight" | "quakes";
 
 export interface StimulusEvent {
   lat: number;
@@ -23,9 +23,13 @@ export interface SignalSource {
   label: string;
   /** 런타임 on/off */
   enabled: boolean;
-  /** 외부 데이터가 필요한 소스용(지진/위성). 로컬은 불필요. */
-  start?(): void | Promise<void>;
-  stop?(): void;
-  /** 이번 틱에 주입할 자극들. 내부 상태에서 동기적으로 뱉는다. */
+  /** 이번 틱에 주입할 자극들. 내부 상태/버퍼에서 동기적으로 뱉는다(매 프레임). */
   poll(tick: number): StimulusEvent[];
+  /**
+   * 선택. 외부 데이터 소스만 구현. refreshMs마다 벽시계로 호출되어
+   * /api/signals/{id} 프록시에서 데이터를 받아 내부 버퍼를 채운다(렌더 루프와 독립).
+   */
+  refresh?(ctx: { signal: AbortSignal }): Promise<void>;
+  /** refresh 폴링 주기(ms). 지진 60_000 등. */
+  refreshMs?: number;
 }

@@ -21,7 +21,8 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
 
   return (
     <div
-      className={`flex w-full flex-col gap-1 ${
+      id={isMinseo ? undefined : `feed-${msg.n}`}
+      className={`flex w-full flex-col gap-1 scroll-mt-4 ${
         isMinseo ? "items-end" : "items-start"
       }`}
     >

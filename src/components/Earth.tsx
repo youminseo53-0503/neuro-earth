@@ -6,6 +6,7 @@ import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { useUI } from "@/store/useUI";
+import { useViz } from "@/store/useViz";
 
 const ATMO_VERT = /* glsl */ `
   varying vec3 vNormal;
@@ -29,6 +30,7 @@ const ATMO_FRAG = /* glsl */ `
  */
 export function Earth() {
   const earthVisible = useUI((s) => s.earthVisible);
+  const showEarth = useViz((s) => s.config.showEarth);
   const cloudsRef = useRef<THREE.Mesh>(null);
 
   const [dayMap, specMap, cloudsMap] = useTexture([
@@ -41,7 +43,7 @@ export function Earth() {
     if (cloudsRef.current) cloudsRef.current.rotation.y += dt * 0.006;
   });
 
-  if (!earthVisible) return null;
+  if (!earthVisible || !showEarth) return null;
 
   return (
     <group>
