@@ -59,6 +59,7 @@ export interface ESyn {
   w: number;
   sign: number;
   act: number;
+  route: boolean; // 장거리 축삭(항공 노선) — 아크로 렌더
 }
 
 export interface EConfig {
@@ -134,7 +135,7 @@ export class EmergentNetwork {
     this.rng = mulberry32(this.cfg.seed);
     this.nodes = Array.from({ length: this.cfg.maxNodes }, () => this.blankNode());
     this.syns = Array.from({ length: this.cfg.maxSyn }, () => ({
-      alive: false, i: 0, j: 0, w: 0, sign: 1, act: 0,
+      alive: false, i: 0, j: 0, w: 0, sign: 1, act: 0, route: false,
     }));
     for (let i = this.cfg.maxNodes - 1; i >= 0; i--) this.freeNodes.push(i);
     for (let i = this.cfg.maxSyn - 1; i >= 0; i--) this.freeSyns.push(i);
@@ -180,16 +181,30 @@ export class EmergentNetwork {
     return slot;
   }
 
-  private connect(i: number, j: number) {
+  private connect(i: number, j: number, route = false, w?: number) {
     const slot = this.freeSyns.pop();
     if (slot === undefined) return;
     const s = this.syns[slot];
     s.alive = true; s.i = i; s.j = j;
-    s.w = 0.15 + this.rng() * 0.2;
+    s.w = w ?? 0.15 + this.rng() * 0.2;
     s.sign = this.nodes[i].type;
     s.act = 0;
+    s.route = route;
     this.nodes[i].deg++;
     this.nodes[j].deg++;
+  }
+
+  /** 두 지점의 가장 가까운 노드를 장거리 연결(축삭). 둘 다 존재할 때만. */
+  injectRoute(latA: number, lonA: number, latB: number, lonB: number, weight = 0.5) {
+    const [ax, ay, az] = latLonToUnit(latA, lonA);
+    const [bx, by, bz] = latLonToUnit(latB, lonB);
+    const cosR = Math.cos(0.16);
+    const i = this.nearest(ax, ay, az, cosR);
+    const j = this.nearest(bx, by, bz, cosR);
+    if (i < 0 || j < 0 || i === j) return;
+    if (this.nodes[i].deg >= this.cfg.maxDeg || this.nodes[j].deg >= this.cfg.maxDeg) return;
+    if (this.hasEdge(i, j)) return;
+    this.connect(i, j, true, weight);
   }
 
   private hasEdge(i: number, j: number): boolean {

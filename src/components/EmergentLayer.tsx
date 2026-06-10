@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { EmergentNetwork } from "@/lib/emergent";
+import { EmergentNetwork, type ENode } from "@/lib/emergent";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
@@ -11,21 +11,35 @@ import { useMetrics } from "@/store/useMetrics";
 
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
+const ROUTE_CAP = 160; // 동시 렌더 노선 수
+const ARC_SEG = 18; // 노선 아크 분할
+const ROUTE_BULGE = 0.2; // 아크가 지표 위로 부푸는 정도
+
+function slerp(a: ENode, b: ENode, t: number): [number, number, number] {
+  let dot = a.x * b.x + a.y * b.y + a.z * b.z;
+  dot = Math.max(-1, Math.min(1, dot));
+  const th = Math.acos(dot);
+  if (th < 1e-4) return [a.x, a.y, a.z];
+  const s = Math.sin(th);
+  const s0 = Math.sin((1 - t) * th) / s;
+  const s1 = Math.sin(t * th) / s;
+  return [a.x * s0 + b.x * s1, a.y * s0 + b.y * s1, a.z * s0 + b.z * s1];
+}
 
 /**
- * Emergent 엔진 렌더러 — 노드/시냅스가 동적으로 생멸한다.
- *   · 고정 용량 instancedMesh: 살아있는 노드만 표시(죽으면 scale 0)
- *   · 시냅스는 살아있는 것만 compact 버퍼에 써서 drawRange로 그림
- *   · 매 프레임: 신호 주입 → step(탄생/죽음/연결) → 렌더 갱신
+ * Emergent 엔진 렌더러 — 노드/시냅스 동적 생멸 + 장거리 노선(축삭) 아크.
  */
 export function EmergentLayer() {
   const config = useViz((s) => s.config);
   const setE = useMetrics((s) => s.setEmergent);
 
   const sig = config.sources.join(",") + "|" + (config.intrinsic ? "i" : "");
-  const { net, sources, lineGeom, lineMat, posArr, colArr } = useMemo(() => {
+  const {
+    net, sources, lineGeom, lineMat, posArr, colArr, routeGeom, routeMat, rPos, rCol,
+  } = useMemo(() => {
     const net = new EmergentNetwork({ spontaneous: config.intrinsic ? 0.006 : 0 });
     const sources = makeSources(config.sources);
+
     const cap = net.cfg.maxSyn;
     const posArr = new Float32Array(cap * 6);
     const colArr = new Float32Array(cap * 6);
@@ -34,13 +48,23 @@ export function EmergentLayer() {
     lineGeom.setAttribute("color", new THREE.BufferAttribute(colArr, 3));
     lineGeom.setDrawRange(0, 0);
     const lineMat = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      opacity: 0.95,
+      vertexColors: true, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.95,
     });
-    return { net, sources, lineGeom, lineMat, posArr, colArr };
+
+    const rCount = ROUTE_CAP * (ARC_SEG - 1) * 6;
+    const rPos = new Float32Array(rCount);
+    const rCol = new Float32Array(rCount);
+    const routeGeom = new THREE.BufferGeometry();
+    routeGeom.setAttribute("position", new THREE.BufferAttribute(rPos, 3));
+    routeGeom.setAttribute("color", new THREE.BufferAttribute(rCol, 3));
+    routeGeom.setDrawRange(0, 0);
+    const routeMat = new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, opacity: 1,
+    });
+
+    return { net, sources, lineGeom, lineMat, posArr, colArr, routeGeom, routeMat, rPos, rCol };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
@@ -50,7 +74,6 @@ export function EmergentLayer() {
   const tickRef = useRef(0);
   const frameRef = useRef(0);
 
-  // 외부 데이터 소스 refresh(웹소켓/폴링) 구동
   useEffect(() => {
     const acs: AbortController[] = [];
     const timers: ReturnType<typeof setInterval>[] = [];
@@ -75,8 +98,11 @@ export function EmergentLayer() {
 
     for (const src of sources) {
       if (!src.enabled) continue;
-      const evs = src.poll(tick);
-      for (const ev of evs) net.injectStimulus(ev.lat, ev.lon, ev.strength);
+      for (const ev of src.poll(tick)) net.injectStimulus(ev.lat, ev.lon, ev.strength);
+      if (src.pollRoutes) {
+        for (const rt of src.pollRoutes(tick))
+          net.injectRoute(rt.latA, rt.lonA, rt.latB, rt.lonB, rt.weight);
+      }
     }
     net.step();
 
@@ -104,22 +130,19 @@ export function EmergentLayer() {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
-    // 시냅스 (살아있는 것만 compact)
+    // 시냅스 (로컬은 직선 / 노선은 아래에서 아크로)
     const syns = net.syns;
     let c = 0;
     for (let s = 0; s < syns.length; s++) {
       const e = syns[s];
-      if (!e.alive) continue;
+      if (!e.alive || e.route) continue;
       const a = nodes[e.i];
       const b = nodes[e.j];
       if (!a.alive || !b.alive) continue;
       const t = Math.min(1, e.act * (0.5 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.4);
       let r: number, g: number, bl: number;
-      if (e.sign > 0) {
-        r = 0.1 * t; g = 0.9 * t; bl = 0.7 * t;
-      } else {
-        r = 0.9 * t; g = 0.2 * t; bl = 0.35 * t;
-      }
+      if (e.sign > 0) { r = 0.1 * t; g = 0.9 * t; bl = 0.7 * t; }
+      else { r = 0.9 * t; g = 0.2 * t; bl = 0.35 * t; }
       const o = c * 6;
       posArr[o] = a.x * SURF; posArr[o + 1] = a.y * SURF; posArr[o + 2] = a.z * SURF;
       posArr[o + 3] = b.x * SURF; posArr[o + 4] = b.y * SURF; posArr[o + 5] = b.z * SURF;
@@ -131,6 +154,39 @@ export function EmergentLayer() {
     lineGeom.attributes.position.needsUpdate = true;
     lineGeom.attributes.color.needsUpdate = true;
 
+    // 노선(축삭) — 대권 아크로, 지표 위로 부풀려서
+    let rc = 0;
+    const maxSeg = ROUTE_CAP * (ARC_SEG - 1);
+    for (let s = 0; s < syns.length && rc < maxSeg; s++) {
+      const e = syns[s];
+      if (!e.alive || !e.route) continue;
+      const a = nodes[e.i];
+      const b = nodes[e.j];
+      if (!a.alive || !b.alive) continue;
+      const tc = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
+      const r = 0.5 * tc, g = 0.8 * tc, bl = 1.0 * tc;
+      let px = 0, py = 0, pz = 0;
+      for (let k = 0; k < ARC_SEG; k++) {
+        const tt = k / (ARC_SEG - 1);
+        const [ux, uy, uz] = slerp(a, b, tt);
+        const m = Math.hypot(ux, uy, uz) || 1;
+        const rad = SURF * (1 + ROUTE_BULGE * Math.sin(Math.PI * tt));
+        const x = (ux / m) * rad, y = (uy / m) * rad, z = (uz / m) * rad;
+        if (k > 0 && rc < maxSeg) {
+          const o = rc * 6;
+          rPos[o] = px; rPos[o + 1] = py; rPos[o + 2] = pz;
+          rPos[o + 3] = x; rPos[o + 4] = y; rPos[o + 5] = z;
+          rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = bl;
+          rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = bl;
+          rc++;
+        }
+        px = x; py = y; pz = z;
+      }
+    }
+    routeGeom.setDrawRange(0, rc * 2);
+    routeGeom.attributes.position.needsUpdate = true;
+    routeGeom.attributes.color.needsUpdate = true;
+
     if (frameRef.current++ % 12 === 0) setE(net.metrics);
   });
 
@@ -139,6 +195,7 @@ export function EmergentLayer() {
   return (
     <group>
       <lineSegments geometry={lineGeom} material={lineMat} frustumCulled={false} />
+      <lineSegments geometry={routeGeom} material={routeMat} frustumCulled={false} />
       <instancedMesh
         ref={nodesRef}
         args={[undefined, undefined, net.nodes.length]}

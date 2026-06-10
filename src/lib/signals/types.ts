@@ -24,6 +24,15 @@ export interface StimulusEvent {
   radius?: number;
 }
 
+/** 두 지점을 잇는 장거리 연결(축삭) — 실제 항공 노선 등 */
+export interface RouteEvent {
+  latA: number;
+  lonA: number;
+  latB: number;
+  lonB: number;
+  weight?: number;
+}
+
 export interface SignalSource {
   id: string;
   label: string;
@@ -31,6 +40,8 @@ export interface SignalSource {
   enabled: boolean;
   /** 이번 틱에 주입할 자극들. 내부 상태/버퍼에서 동기적으로 뱉는다(매 프레임). */
   poll(tick: number): StimulusEvent[];
+  /** 선택. 장거리 연결(축삭) 요청 — emergent 엔진의 injectRoute로 전달. */
+  pollRoutes?(tick: number): RouteEvent[];
   /**
    * 선택. 외부 데이터 소스만 구현. refreshMs마다 벽시계로 호출되어
    * /api/signals/{id} 프록시에서 데이터를 받아 내부 버퍼를 채운다(렌더 루프와 독립).
