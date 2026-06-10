@@ -37,3 +37,12 @@ export function getSunDirection(date = new Date()): THREE.Vector3 {
   const sunLon = (12 - utcHours) * 15;
   return latLonToVec3(decl, sunLon, 1).normalize();
 }
+
+/** latLonToVec3의 역변환: 단위벡터 → {lat,lon}(도). 항공 궤도 보간 등에 사용. */
+export function vec3ToLatLon(x: number, y: number, z: number): { lat: number; lon: number } {
+  const lat = Math.asin(Math.max(-1, Math.min(1, y))) * (180 / Math.PI);
+  let lon = Math.atan2(z, -x) * (180 / Math.PI) - 180;
+  while (lon < -180) lon += 360;
+  while (lon > 180) lon -= 360;
+  return { lat, lon };
+}

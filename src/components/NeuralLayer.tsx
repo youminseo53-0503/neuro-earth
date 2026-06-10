@@ -84,7 +84,8 @@ export function NeuralLayer() {
     for (const src of sources) {
       if (!src.enabled) continue;
       const events = src.poll(tick);
-      for (const ev of events) net.injectStimulus(ev.lat, ev.lon, ev.strength);
+      for (const ev of events)
+        net.injectStimulus(ev.lat, ev.lon, ev.strength, ev.radius);
     }
 
     // 2) 엔진 한 틱
@@ -109,7 +110,12 @@ export function NeuralLayer() {
     const syn = net.synapses;
     for (let s = 0; s < syn.length; s++) {
       const e = syn[s];
-      const t = Math.min(1, e.w);
+      // 밝기 = 최근 신호 통과(act, 지배적) + 강하게 학습된 경로의 희미한 잔존
+      // → 신호 없는 곳은 자연히 사라지고, 자주 쓰인 길만 살아남는다
+      const t = Math.min(
+        1,
+        e.act * (0.45 + 0.55 * e.w) + Math.max(0, e.w - 0.32) * 0.4,
+      );
       let r: number, g: number, b: number;
       if (e.sign > 0) {
         r = 0.1 * t;

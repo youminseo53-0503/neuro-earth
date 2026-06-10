@@ -12,6 +12,8 @@ export interface StimulusEvent {
   lon: number;
   /** 자극 세기 */
   strength: number;
+  /** 자극 반경(라디안). 없으면 엔진 기본값. 움직이는 점(항공)은 좁게. */
+  radius?: number;
 }
 
 export interface SignalSource {

@@ -37,8 +37,9 @@ export interface NeuronNode {
 export interface Synapse {
   i: number; // pre
   j: number; // post
-  w: number; // 0..wMax
+  w: number; // 0..wMax (학습된 강도)
   sign: number; // +1 흥분 / -1 억제 (pre 타입 기반, 고정)
+  act: number; // 0..1 최근 신호 통과(시각화용) — 안 쓰면 빠르게 식음
 }
 
 export interface PlasticityConfig {
@@ -87,6 +88,7 @@ export interface PlasticityMetrics {
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const DEG = 180 / Math.PI;
+const JITTER_DEG = 4; // 노드 위치 무작위 지터(너무 규칙적인 격자 완화)
 
 export class PlasticityNetwork {
   readonly cfg: PlasticityConfig;
@@ -117,14 +119,23 @@ export class PlasticityNetwork {
     const { nodeCount: N, neighbors, inhibitoryRatio, threshold } = this.cfg;
 
     for (let k = 0; k < N; k++) {
-      const y = 1 - (k / (N - 1)) * 2;
-      const r = Math.sqrt(Math.max(0, 1 - y * y));
-      const theta = k * GOLDEN_ANGLE;
-      const x = Math.cos(theta) * r;
-      const z = Math.sin(theta) * r;
+      const yk = 1 - (k / (N - 1)) * 2;
+      let lat = Math.asin(yk) * DEG;
+      let lon = (k * GOLDEN_ANGLE * DEG) % 360;
+      if (lon > 180) lon -= 360;
+      // 무작위 지터(격자 느낌 완화)
+      lat += (this.rng() - 0.5) * JITTER_DEG;
+      lon += (this.rng() - 0.5) * JITTER_DEG;
+      lat = Math.max(-89, Math.min(89, lat));
+      // latLonToVec3와 동일 규약 → injectStimulus·지구 텍스처와 정렬
+      const phi = (90 - lat) / DEG;
+      const th = (lon + 180) / DEG;
+      const x = -Math.sin(phi) * Math.cos(th);
+      const y = Math.cos(phi);
+      const z = Math.sin(phi) * Math.sin(th);
       this.nodes.push({
-        lat: Math.asin(y) * DEG,
-        lon: Math.atan2(z, x) * DEG,
+        lat,
+        lon,
         x,
         y,
         z,
@@ -158,6 +169,7 @@ export class PlasticityNetwork {
           j,
           w: 0.1 + this.rng() * 0.3,
           sign: a.type === "inh" ? -1 : 1,
+          act: 0,
         });
         this.incoming[j].push(idx);
       }
@@ -208,7 +220,12 @@ export class PlasticityNetwork {
     const input = new Float32Array(N);
     for (let s = 0; s < syn.length; s++) {
       const e = syn[s];
-      if (prevFired[e.i]) input[e.j] += e.sign * e.w;
+      if (prevFired[e.i]) {
+        input[e.j] += e.sign * e.w;
+        e.act = 1; // 신호가 이 연결을 지나감
+      } else {
+        e.act *= 0.8; // 안 지나면 빠르게 식음 → idle은 사라짐
+      }
       e.w *= 1 - prune;
     }
 
