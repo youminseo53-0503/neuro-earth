@@ -63,8 +63,8 @@ export async function GET() {
         })
       : null;
 
-  // 90초 TTL (크레딧 절약: 4000/일)
-  if (lastGood && Date.now() - lastGood.at < 90_000) {
+  // 5분 TTL (크레딧 절약: 4000/일 → 24h 풀가동도 ~1150/일)
+  if (lastGood && Date.now() - lastGood.at < 300_000) {
     return new Response(lastGood.body, {
       headers: { "content-type": "application/json", "x-cache": "hit" },
     });

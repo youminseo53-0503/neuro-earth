@@ -37,7 +37,7 @@ export function createFlightsLiveSource(): SignalSource {
     id: "flightslive",
     label: "실시간 항공 유동인구 (OpenSky)",
     enabled: true,
-    refreshMs: 90_000,
+    refreshMs: 300_000,
 
     async refresh({ signal }) {
       const res = await fetch("/api/opensky", { signal });
