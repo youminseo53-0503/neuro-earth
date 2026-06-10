@@ -1,0 +1,86 @@
+"use client";
+
+import { useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useTexture } from "@react-three/drei";
+import * as THREE from "three";
+import { EARTH_RADIUS } from "@/lib/geo";
+import { useUI } from "@/store/useUI";
+
+const ATMO_VERT = /* glsl */ `
+  varying vec3 vNormal;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const ATMO_FRAG = /* glsl */ `
+  varying vec3 vNormal;
+  void main() {
+    float intensity = pow(0.62 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.4);
+    gl_FragColor = vec4(0.25, 0.6, 1.0, 1.0) * intensity;
+  }
+`;
+
+/**
+ * 3D 지구 — 본체(낮 텍스처 + 바다 반사) + 구름 + 대기광.
+ * earthVisible 토글 시 지구만 사라지고(신경망은 유지) Stars 배경만 남는다.
+ */
+export function Earth() {
+  const earthVisible = useUI((s) => s.earthVisible);
+  const cloudsRef = useRef<THREE.Mesh>(null);
+
+  const [dayMap, specMap, cloudsMap] = useTexture([
+    "/textures/earth_atmos_2048.jpg",
+    "/textures/earth_specular_2048.jpg",
+    "/textures/earth_clouds_2048.png",
+  ]);
+
+  useFrame((_, dt) => {
+    if (cloudsRef.current) cloudsRef.current.rotation.y += dt * 0.006;
+  });
+
+  if (!earthVisible) return null;
+
+  return (
+    <group>
+      {/* 본체 */}
+      <mesh>
+        <sphereGeometry args={[EARTH_RADIUS, 96, 96]} />
+        <meshStandardMaterial
+          map={dayMap}
+          roughnessMap={specMap}
+          metalness={0.1}
+          roughness={0.9}
+          emissive={new THREE.Color("#0a1a33")}
+          emissiveIntensity={0.22}
+        />
+      </mesh>
+
+      {/* 구름 */}
+      <mesh ref={cloudsRef} scale={1.012}>
+        <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
+        <meshStandardMaterial
+          map={cloudsMap}
+          transparent
+          opacity={0.32}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* 대기광 (Fresnel rim) */}
+      <mesh scale={1.16}>
+        <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
+        <shaderMaterial
+          side={THREE.BackSide}
+          blending={THREE.AdditiveBlending}
+          transparent
+          depthWrite={false}
+          vertexShader={ATMO_VERT}
+          fragmentShader={ATMO_FRAG}
+        />
+      </mesh>
+    </group>
+  );
+}
