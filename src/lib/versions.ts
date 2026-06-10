@@ -56,8 +56,20 @@ export const VERSIONS: VizVersion[] = [
   {
     id: "v-real",
     n: 19,
-    label: "실데이터 (지진)",
+    label: "실데이터 (지진+항공시뮬)",
     config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["flight", "quakes"] },
+  },
+  {
+    id: "v-quakes",
+    n: 21,
+    label: "순수 실데이터 (지진만)",
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["quakes"] },
+  },
+  {
+    id: "v-starlink",
+    n: 23,
+    label: "실데이터 (스타링크+지진)",
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["starlink", "quakes"] },
   },
 ];
 

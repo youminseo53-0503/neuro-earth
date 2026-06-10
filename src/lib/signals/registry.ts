@@ -2,11 +2,13 @@ import type { SignalSource, SourceId } from "./types";
 import { createLocalSource } from "./localSource";
 import { createFlightSource } from "./flightSource";
 import { createQuakeSource } from "./sources/quakes";
+import { createStarlinkSource } from "./sources/starlink";
 
 const FACTORIES: Record<SourceId, () => SignalSource> = {
   local: () => createLocalSource(),
   flight: () => createFlightSource(),
   quakes: () => createQuakeSource(),
+  starlink: () => createStarlinkSource(),
 };
 
 /**
