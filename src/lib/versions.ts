@@ -126,6 +126,21 @@ export const VERSIONS: VizVersion[] = [
       intrinsic: true,
     },
   },
+  {
+    id: "v-flights",
+    n: 31,
+    label: "실시간 항공 유동인구 (OpenSky·진짜)",
+    config: {
+      showEarth: true,
+      showNet: true,
+      colorMode: "act",
+      jitter: 4,
+      sources: ["flightslive"],
+      gain: 1,
+      engine: "emergent",
+      intrinsic: true,
+    },
+  },
 ];
 
 export const LATEST: VizVersion = VERSIONS[VERSIONS.length - 1];

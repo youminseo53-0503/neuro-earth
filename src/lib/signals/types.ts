@@ -7,7 +7,13 @@
 // 런타임에 enabled로 켜고/끄고/교체한다.
 // ─────────────────────────────────────────────────────────────
 
-export type SourceId = "local" | "flight" | "quakes" | "starlink" | "crypto";
+export type SourceId =
+  | "local"
+  | "flight"
+  | "quakes"
+  | "starlink"
+  | "crypto"
+  | "flightslive";
 
 export interface StimulusEvent {
   lat: number;

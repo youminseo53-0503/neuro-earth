@@ -4,6 +4,7 @@ import { createFlightSource } from "./flightSource";
 import { createQuakeSource } from "./sources/quakes";
 import { createStarlinkSource } from "./sources/starlink";
 import { createMarketSource } from "./sources/market";
+import { createFlightsLiveSource } from "./sources/flightsLive";
 
 const FACTORIES: Record<SourceId, () => SignalSource> = {
   local: () => createLocalSource(),
@@ -11,6 +12,7 @@ const FACTORIES: Record<SourceId, () => SignalSource> = {
   quakes: () => createQuakeSource(),
   starlink: () => createStarlinkSource(),
   crypto: () => createMarketSource(),
+  flightslive: () => createFlightsLiveSource(),
 };
 
 /**
