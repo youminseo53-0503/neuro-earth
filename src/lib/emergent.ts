@@ -112,9 +112,9 @@ export const EMERGENT_DEFAULT: EConfig = {
   nodeLifespan: 220,
   spontaneous: 0,
   hormoneProb: 0,
-  hormoneRelease: 1.6,
+  hormoneRelease: 4, // 분비량 ↑ (확산해도 보이게)
   hormoneDecay: 0.9993, // 매우 느림 → 한참 유지
-  diffuseRate: 0.16,
+  diffuseRate: 0.1, // 천천히 퍼짐 → 진하게 모여 보임 + 서서히 대륙 건넘
   modDrive: 0.28,
   seed: 20260611,
 };

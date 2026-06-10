@@ -46,7 +46,7 @@ export function EmergentLayer() {
   } = useMemo(() => {
     const net = new EmergentNetwork({
       spontaneous: config.intrinsic ? 0.01 : 0,
-      hormoneProb: config.hormone ? 0.02 : 0,
+      hormoneProb: config.hormone ? 0.04 : 0,
     });
     const sources = makeSources(config.sources);
 
@@ -130,9 +130,9 @@ export function EmergentLayer() {
       const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
       if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
       else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
-      if (n.mod > 0.03) color.lerp(GOLD, Math.min(0.8, n.mod * 0.6)); // 호르몬 물듦
+      if (n.mod > 0.015) color.lerp(GOLD, Math.min(0.92, n.mod * 1.8)); // 호르몬 물듦
       mesh.setColorAt(i, color);
-      const s = 0.25 + n.vitality * 1.1;
+      const s = 0.25 + n.vitality * 1.1 + n.mod * 0.6; // 호르몬 받으면 부풂
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
       dummy.scale.setScalar(s);
       dummy.updateMatrix();
