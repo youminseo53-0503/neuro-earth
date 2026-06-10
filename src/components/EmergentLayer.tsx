@@ -44,11 +44,15 @@ export function EmergentLayer() {
   const sig =
     config.sources.join(",") +
     "|" + (config.intrinsic ? "i" : "") +
-    (config.hormone ? "h" : "");
+    (config.hormone ? "h" : "") +
+    (config.fatigue ? "f" : "") +
+    (config.homeo ? "o" : "");
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork({
       spontaneous: config.intrinsic ? 0.01 : 0,
       hormoneProb: config.hormone ? 0.006 : 0,
+      fatigueGain: config.fatigue ? 0.18 : 0,
+      homeoRate: config.homeo ? 0.03 : 0,
     });
     const sources = makeSources(config.sources);
 

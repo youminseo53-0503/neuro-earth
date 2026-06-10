@@ -51,6 +51,7 @@ export interface ENode {
   lastActive: number;
   deg: number;
   mod: number; // 호르몬(neuromodulation) 농도 — 느리게 확산·감쇠, 흥분성 끌어올림
+  fatigue: number; // 피로(사회=식상함) — 과발화 시 쌓여 임계 ↑(쉬게 됨), 천천히 회복
 }
 
 export interface ESyn {
@@ -90,6 +91,11 @@ export interface EConfig {
   diffuseRate: number; // mod 로컬 시냅스 확산율(천천히)
   routeDiffuse: number; // mod 노선(축삭) 확산율(멀리 확 점프)
   modDrive: number; // mod가 흥분성에 더하는 양
+  fatigueGain: number; // 발화 시 피로 증가(0=끔)
+  fatigueRecover: number; // 피로 회복(곱, <1)
+  fatigueK: number; // 피로가 임계값을 올리는 정도
+  homeoRate: number; // 항상성 시냅스 스케일링 속도(0=끔)
+  homeoTarget: number; // 노드별 입력 |w| 합 목표
   seed: number;
 }
 
@@ -119,6 +125,11 @@ export const EMERGENT_DEFAULT: EConfig = {
   diffuseRate: 0.08, // 로컬은 천천히
   routeDiffuse: 0.42, // 노선(축삭)으로는 멀리 확 점프
   modDrive: 0.28,
+  fatigueGain: 0, // 기본 끔(버전에서 켬)
+  fatigueRecover: 0.985,
+  fatigueK: 0.7,
+  homeoRate: 0, // 기본 끔(버전에서 켬)
+  homeoTarget: 2.2,
   seed: 20260611,
 };
 
@@ -145,6 +156,7 @@ export class EmergentNetwork {
   private aliveNodeIdx: number[] = []; // 살아있는 노드 인덱스(스캔용)
   private bornCount = 0; // step 사이 탄생 수
   private edges = new Set<number>(); // 연결 쌍 O(1) 조회
+  private inSum!: Float32Array; // 항상성용 노드별 입력 |w| 합
 
   private ekey(i: number, j: number): number {
     return i < j ? i * this.cfg.maxNodes + j : j * this.cfg.maxNodes + i;
@@ -153,6 +165,7 @@ export class EmergentNetwork {
   constructor(cfg: Partial<EConfig> = {}) {
     this.cfg = { ...EMERGENT_DEFAULT, ...cfg };
     this.rng = mulberry32(this.cfg.seed);
+    this.inSum = new Float32Array(this.cfg.maxNodes);
     this.nodes = Array.from({ length: this.cfg.maxNodes }, () => this.blankNode());
     this.syns = Array.from({ length: this.cfg.maxSyn }, () => ({
       alive: false, i: 0, j: 0, w: 0, sign: 1, act: 0, use: 0, route: false,
@@ -165,7 +178,7 @@ export class EmergentNetwork {
     return {
       alive: false, x: 0, y: 0, z: 0, lat: 0, lon: 0, a: 0, inj: 0, vitality: 0,
       type: 1, threshold: 0.55, refrac: 0, fired: false, flash: 0, lastActive: 0, deg: 0,
-      mod: 0,
+      mod: 0, fatigue: 0,
     };
   }
 
@@ -193,7 +206,7 @@ export class EmergentNetwork {
     const n = this.nodes[slot];
     n.alive = true;
     n.x = x; n.y = y; n.z = z; n.lat = lat; n.lon = lon;
-    n.a = activation; n.inj = 0; n.vitality = 0.1; n.mod = 0;
+    n.a = activation; n.inj = 0; n.vitality = 0.1; n.mod = 0; n.fatigue = 0;
     n.type = this.rng() < this.cfg.inhibitoryRatio ? -1 : 1;
     n.threshold = this.cfg.threshold * (0.85 + this.rng() * 0.3);
     n.refrac = 0; n.fired = false; n.flash = 0;
@@ -269,11 +282,12 @@ export class EmergentNetwork {
   }
 
   step() {
-    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous, hormoneProb, hormoneRelease, hormoneDecay, diffuseRate, routeDiffuse, modDrive } = this.cfg;
+    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous, hormoneProb, hormoneRelease, hormoneDecay, diffuseRate, routeDiffuse, modDrive, fatigueGain, fatigueRecover, fatigueK, homeoRate, homeoTarget } = this.cfg;
 
     // 살아있는 노드 목록 갱신
     this.aliveNodeIdx.length = 0;
     for (let i = 0; i < this.nodes.length; i++) if (this.nodes[i].alive) this.aliveNodeIdx.push(i);
+    if (homeoRate > 0) this.inSum.fill(0);
 
     // 1) 시냅스 입력 누적 + 전역 약화/사멸
     const input = new Map<number, number>();
@@ -289,6 +303,7 @@ export class EmergentNetwork {
       }
       e.use *= 0.9996; // 아주 천천히 가늘어짐
       if (e.use > 5) e.use = 5; // 소프트 캡(너무 과하진 않게)
+      if (homeoRate > 0) this.inSum[e.j] += e.w < 0 ? -e.w : e.w;
       // 문화(호르몬) 비보존 전파(전염형) — 낮은 쪽이 높은 쪽×감쇠로 끌려 올라감.
       // 원천은 안 줄어 멀리 가도 밝고, 홉마다 0.92씩 감쇠해 거리에 따라 옅어짐.
       // 로컬은 천천히, 노선(축삭)으로는 멀리 확 점프.
@@ -300,6 +315,21 @@ export class EmergentNetwork {
       else if (mj.mod * att > mi.mod) mi.mod += (mj.mod * att - mi.mod) * rate;
       e.w *= 1 - prune;
       if (e.w < minW) this.killSyn(s);
+    }
+
+    // 항상성(시냅스 스케일링) — 노드별 입력 총량을 목표로 천천히 정규화(폭주·포화 방지)
+    if (homeoRate > 0) {
+      for (let s = 0; s < this.syns.length; s++) {
+        const e = this.syns[s];
+        if (!e.alive) continue;
+        const sum = this.inSum[e.j];
+        if (sum > 0.01) {
+          let f = homeoTarget / sum;
+          if (f > 2) f = 2;
+          else if (f < 0.5) f = 0.5;
+          e.w *= 1 - homeoRate + homeoRate * f;
+        }
+      }
     }
 
     // 2) 노드 갱신 + 발화/불응 + 활력
@@ -315,6 +345,7 @@ export class EmergentNetwork {
         nd.flash *= 0.88;
         nd.vitality *= 0.99;
         nd.mod *= hormoneDecay;
+        nd.fatigue *= fatigueRecover;
         nd.inj = 0;
         continue;
       }
@@ -323,16 +354,19 @@ export class EmergentNetwork {
       // 호르몬 — 흥분성을 끌어올림(오래 유지)
       nd.mod *= hormoneDecay;
       if (nd.mod > 0) nd.inj += nd.mod * modDrive;
+      nd.fatigue *= fatigueRecover; // 피로 회복
       let a = nd.a * decay + (input.get(idx) ?? 0) + nd.inj;
       nd.inj = 0;
       if (a < 0) a = 0;
-      if (a >= nd.threshold) {
+      // 피로하면 임계값이 올라가 잘 안 터짐(과사용→쉼→활동이 옮겨다님)
+      if (a >= nd.threshold + nd.fatigue * fatigueK) {
         nd.fired = true;
         nd.refrac = refractoryTicks;
         nd.a = 0;
         nd.flash = 1;
         nd.lastActive = this.tick;
         nd.vitality = Math.min(1.6, nd.vitality + 0.18);
+        nd.fatigue += fatigueGain;
         firing++;
         firedThisStep.push(idx);
       } else {

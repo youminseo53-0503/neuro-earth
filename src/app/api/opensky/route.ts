@@ -26,6 +26,12 @@ const AIRPORTS: { icao: string; lat: number; lon: number }[] = [
   { icao: "CAI", lat: 30.11, lon: 31.4 }, { icao: "DOH", lat: 25.27, lon: 51.61 },
   { icao: "SEA", lat: 47.45, lon: -122.31 }, { icao: "MIA", lat: 25.79, lon: -80.29 },
   { icao: "BCN", lat: 41.3, lon: 2.08 }, { icao: "MUC", lat: 48.35, lon: 11.79 },
+  // 아프리카·남미·오세아니아 (빈 곳 채우기)
+  { icao: "LOS", lat: 6.58, lon: 3.32 }, { icao: "NBO", lat: -1.32, lon: 36.93 },
+  { icao: "ADD", lat: 8.98, lon: 38.8 }, { icao: "CMN", lat: 33.37, lon: -7.59 },
+  { icao: "CPT", lat: -33.97, lon: 18.6 }, { icao: "LAD", lat: -8.86, lon: 13.23 },
+  { icao: "LIM", lat: -12.02, lon: -77.11 }, { icao: "BOG", lat: 4.7, lon: -74.15 },
+  { icao: "SCL", lat: -33.39, lon: -70.79 }, { icao: "AKL", lat: -37.01, lon: 174.79 },
 ];
 
 let tokenCache: { token: string; exp: number } | null = null;

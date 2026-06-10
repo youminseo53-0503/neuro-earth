@@ -28,6 +28,10 @@ export interface VizConfig {
   intrinsic?: boolean;
   /** 호르몬(느린 확산·장기 유지 modulation) 켜기 — 연쇄반응 */
   hormone?: boolean;
+  /** 피로(사회=식상함) — 과사용 시 쉬게 됨, 활동이 옮겨다님 */
+  fatigue?: boolean;
+  /** 항상성(평준화) — 입력 정규화로 폭주·쏠림 방지 */
+  homeo?: boolean;
 }
 
 export interface VizVersion {
@@ -157,6 +161,24 @@ export const VERSIONS: VizVersion[] = [
       engine: "emergent",
       intrinsic: true,
       hormone: true,
+    },
+  },
+  {
+    id: "v-social",
+    n: 40,
+    label: "완성형 — 문화·식상함·평준화 (항공 뇌)",
+    config: {
+      showEarth: true,
+      showNet: true,
+      colorMode: "act",
+      jitter: 4,
+      sources: ["flightslive"],
+      gain: 1,
+      engine: "emergent",
+      intrinsic: true,
+      hormone: true,
+      fatigue: true,
+      homeo: true,
     },
   },
 ];
