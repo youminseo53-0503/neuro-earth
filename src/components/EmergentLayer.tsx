@@ -7,11 +7,12 @@ import { EmergentNetwork, type ENode } from "@/lib/emergent";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
+import { useUI } from "@/store/useUI";
 import { useMetrics } from "@/store/useMetrics";
 
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
-const ROUTE_CAP = 160; // 동시 렌더 노선 수
+const ROUTE_CAP = 700; // 동시 렌더 노선 수
 const ARC_SEG = 18; // 노선 아크 분할
 const ROUTE_BULGE = 0.2; // 아크가 지표 위로 부푸는 정도
 
@@ -31,6 +32,8 @@ function slerp(a: ENode, b: ENode, t: number): [number, number, number] {
  */
 export function EmergentLayer() {
   const config = useViz((s) => s.config);
+  const earthVisible = useUI((s) => s.earthVisible);
+  const earthShown = earthVisible && config.showEarth;
   const setE = useMetrics((s) => s.setEmergent);
 
   const sig = config.sources.join(",") + "|" + (config.intrinsic ? "i" : "");
@@ -165,22 +168,33 @@ export function EmergentLayer() {
       if (!a.alive || !b.alive) continue;
       const tc = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
       const r = 0.5 * tc, g = 0.8 * tc, bl = 1.0 * tc;
-      let px = 0, py = 0, pz = 0;
-      for (let k = 0; k < ARC_SEG; k++) {
-        const tt = k / (ARC_SEG - 1);
-        const [ux, uy, uz] = slerp(a, b, tt);
-        const m = Math.hypot(ux, uy, uz) || 1;
-        const rad = SURF * (1 + ROUTE_BULGE * Math.sin(Math.PI * tt));
-        const x = (ux / m) * rad, y = (uy / m) * rad, z = (uz / m) * rad;
-        if (k > 0 && rc < maxSeg) {
-          const o = rc * 6;
-          rPos[o] = px; rPos[o + 1] = py; rPos[o + 2] = pz;
-          rPos[o + 3] = x; rPos[o + 4] = y; rPos[o + 5] = z;
-          rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = bl;
-          rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = bl;
-          rc++;
+      if (earthShown) {
+        // 지구 켬 → 지표 위 대권 아크(항공 노선 지도처럼)
+        let px = 0, py = 0, pz = 0;
+        for (let k = 0; k < ARC_SEG; k++) {
+          const tt = k / (ARC_SEG - 1);
+          const [ux, uy, uz] = slerp(a, b, tt);
+          const m = Math.hypot(ux, uy, uz) || 1;
+          const rad = SURF * (1 + ROUTE_BULGE * Math.sin(Math.PI * tt));
+          const x = (ux / m) * rad, y = (uy / m) * rad, z = (uz / m) * rad;
+          if (k > 0 && rc < maxSeg) {
+            const o = rc * 6;
+            rPos[o] = px; rPos[o + 1] = py; rPos[o + 2] = pz;
+            rPos[o + 3] = x; rPos[o + 4] = y; rPos[o + 5] = z;
+            rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = bl;
+            rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = bl;
+            rc++;
+          }
+          px = x; py = y; pz = z;
         }
-        px = x; py = y; pz = z;
+      } else if (rc < maxSeg) {
+        // 지구 끔 → 내부를 관통하는 직선(현) = 3D 신경 코어
+        const o = rc * 6;
+        rPos[o] = a.x * SURF; rPos[o + 1] = a.y * SURF; rPos[o + 2] = a.z * SURF;
+        rPos[o + 3] = b.x * SURF; rPos[o + 4] = b.y * SURF; rPos[o + 5] = b.z * SURF;
+        rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = bl;
+        rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = bl;
+        rc++;
       }
     }
     routeGeom.setDrawRange(0, rc * 2);

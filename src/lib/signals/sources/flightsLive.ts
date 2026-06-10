@@ -7,30 +7,23 @@ interface Ap {
   count: number;
 }
 
-// 실제 주요 국제노선(축삭). 라이브 per-flight는 아니고 '존재하는 노선' 큐레이션.
-const ROUTES: [string, string][] = [
-  ["ICN", "JFK"], ["ICN", "LAX"], ["ICN", "SFO"], ["ICN", "FRA"], ["ICN", "LHR"],
-  ["ICN", "SIN"], ["ICN", "HKG"], ["ICN", "NRT"], ["ICN", "PEK"], ["ICN", "BKK"],
-  ["JFK", "LHR"], ["JFK", "CDG"], ["JFK", "FRA"], ["JFK", "DXB"], ["JFK", "GRU"],
-  ["JFK", "MEX"], ["JFK", "LAX"], ["LAX", "HND"], ["LAX", "SYD"], ["LAX", "PVG"],
-  ["LAX", "MEX"], ["SFO", "HND"], ["SFO", "SIN"], ["LHR", "DXB"], ["LHR", "SIN"],
-  ["LHR", "HKG"], ["LHR", "JNB"], ["LHR", "FRA"], ["LHR", "CDG"], ["LHR", "BOM"],
-  ["DXB", "SIN"], ["DXB", "BKK"], ["DXB", "DEL"], ["DXB", "BOM"], ["DXB", "IST"],
-  ["DXB", "JNB"], ["DXB", "SYD"], ["SIN", "HND"], ["SIN", "SYD"], ["SIN", "HKG"],
-  ["SIN", "CGK"], ["SIN", "KUL"], ["HND", "BKK"], ["HND", "SYD"], ["FRA", "PVG"],
-  ["FRA", "PEK"], ["FRA", "DEL"], ["FRA", "GRU"], ["SYD", "HKG"], ["IST", "PEK"],
-  ["DOH", "LHR"], ["DOH", "BKK"], ["AMS", "JFK"], ["YYZ", "LHR"], ["MAD", "GRU"],
-];
+const DEG = Math.PI / 180;
+function unit(lat: number, lon: number): [number, number, number] {
+  const p = (90 - lat) * DEG;
+  const t = (lon + 180) * DEG;
+  return [-Math.sin(p) * Math.cos(t), Math.cos(p), Math.sin(p) * Math.sin(t)];
+}
+
+const LONG_THRESH = Math.cos(0.3); // 두 공항 dot < 이 값 = 장거리(~17°+)
 
 /**
  * 실시간 항공 유동인구 (OpenSky) + 장거리 노선(축삭).
  *   · poll: 공항별 근처 비행기 수에 비례해 자극 → 붐비는 공항일수록 큰 군집.
- *   · pollRoutes: 실제 국제노선으로 멀리 떨어진 공항 군집을 잇는다(장거리 축삭).
+ *   · pollRoutes: '장거리' 공항 쌍을 전부 축삭으로 연결 시도(엔진 maxDeg가 자연 제한).
  *     신호가 그 노선을 타고 대륙을 건넌다 — 진짜 뇌의 long-range 연결.
  */
 export function createFlightsLiveSource(): SignalSource {
   let airports: Ap[] = [];
-  let byIcao = new Map<string, Ap>();
   let maxCount = 1;
 
   return {
@@ -44,7 +37,6 @@ export function createFlightsLiveSource(): SignalSource {
       if (!res.ok) return;
       const data = await res.json();
       airports = Array.isArray(data?.airports) ? data.airports : [];
-      byIcao = new Map(airports.map((a) => [a.icao, a]));
       maxCount = Math.max(1, ...airports.map((a) => a.count));
     },
 
@@ -66,12 +58,20 @@ export function createFlightsLiveSource(): SignalSource {
     },
 
     pollRoutes(tick: number): RouteEvent[] {
-      if (tick % 24 !== 0 || byIcao.size === 0) return []; // 주기적으로만 재연결 시도
+      if (tick % 30 !== 0 || airports.length < 2) return [];
+      const u = airports.map((a) => unit(a.lat, a.lon));
       const out: RouteEvent[] = [];
-      for (const [a, b] of ROUTES) {
-        const A = byIcao.get(a);
-        const B = byIcao.get(b);
-        if (A && B) out.push({ latA: A.lat, lonA: A.lon, latB: B.lat, lonB: B.lon, weight: 0.5 });
+      for (let i = 0; i < airports.length; i++) {
+        for (let j = i + 1; j < airports.length; j++) {
+          const d = u[i][0] * u[j][0] + u[i][1] * u[j][1] + u[i][2] * u[j][2];
+          if (d < LONG_THRESH) {
+            out.push({
+              latA: airports[i].lat, lonA: airports[i].lon,
+              latB: airports[j].lat, lonB: airports[j].lon,
+              weight: 0.4,
+            });
+          }
+        }
       }
       return out;
     },

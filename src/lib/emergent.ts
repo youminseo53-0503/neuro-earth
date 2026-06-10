@@ -94,7 +94,7 @@ export const EMERGENT_DEFAULT: EConfig = {
   connectProb: 0.5,
   growthProb: 0.3,
   growthOffset: 0.11,
-  maxDeg: 10,
+  maxDeg: 14,
   inhibitoryRatio: 0.22,
   decay: 0.85,
   threshold: 0.5,
@@ -129,6 +129,11 @@ export class EmergentNetwork {
   private freeSyns: number[] = [];
   private aliveNodeIdx: number[] = []; // 살아있는 노드 인덱스(스캔용)
   private bornCount = 0; // step 사이 탄생 수
+  private edges = new Set<number>(); // 연결 쌍 O(1) 조회
+
+  private ekey(i: number, j: number): number {
+    return i < j ? i * this.cfg.maxNodes + j : j * this.cfg.maxNodes + i;
+  }
 
   constructor(cfg: Partial<EConfig> = {}) {
     this.cfg = { ...EMERGENT_DEFAULT, ...cfg };
@@ -192,6 +197,7 @@ export class EmergentNetwork {
     s.route = route;
     this.nodes[i].deg++;
     this.nodes[j].deg++;
+    this.edges.add(this.ekey(i, j));
   }
 
   /** 두 지점의 가장 가까운 노드를 장거리 연결(축삭). 둘 다 존재할 때만. */
@@ -208,11 +214,7 @@ export class EmergentNetwork {
   }
 
   private hasEdge(i: number, j: number): boolean {
-    for (let s = 0; s < this.syns.length; s++) {
-      const e = this.syns[s];
-      if (e.alive && ((e.i === i && e.j === j) || (e.i === j && e.j === i))) return true;
-    }
-    return false;
+    return this.edges.has(this.ekey(i, j));
   }
 
   private killNode(idx: number) {
@@ -231,6 +233,7 @@ export class EmergentNetwork {
     e.alive = false;
     this.nodes[e.i].deg--;
     this.nodes[e.j].deg--;
+    this.edges.delete(this.ekey(e.i, e.j));
     this.freeSyns.push(s);
   }
 
