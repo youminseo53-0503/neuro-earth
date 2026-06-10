@@ -22,9 +22,9 @@ export function EmergentLayer() {
   const config = useViz((s) => s.config);
   const setE = useMetrics((s) => s.setEmergent);
 
-  const sig = config.sources.join(",");
+  const sig = config.sources.join(",") + "|" + (config.intrinsic ? "i" : "");
   const { net, sources, lineGeom, lineMat, posArr, colArr } = useMemo(() => {
-    const net = new EmergentNetwork();
+    const net = new EmergentNetwork({ spontaneous: config.intrinsic ? 0.006 : 0 });
     const sources = makeSources(config.sources);
     const cap = net.cfg.maxSyn;
     const posArr = new Float32Array(cap * 6);

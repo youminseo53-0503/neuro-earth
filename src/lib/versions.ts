@@ -24,6 +24,8 @@ export interface VizConfig {
   grow?: boolean;
   /** 렌더 엔진: grid=고정격자(기존) / emergent=노드가 데이터에서 생멸 */
   engine?: "grid" | "emergent";
+  /** emergent에서 내재 활동(스스로 발화) 켜기 — 자극 없어도 살아있는 뇌 */
+  intrinsic?: boolean;
 }
 
 export interface VizVersion {
@@ -107,6 +109,21 @@ export const VERSIONS: VizVersion[] = [
       sources: ["crypto", "quakes"],
       gain: 1,
       engine: "emergent",
+    },
+  },
+  {
+    id: "v-alive",
+    n: 29,
+    label: "Emergent + 내재활동 (스스로 발화)",
+    config: {
+      showEarth: true,
+      showNet: true,
+      colorMode: "act",
+      jitter: 4,
+      sources: ["crypto", "quakes"],
+      gain: 1,
+      engine: "emergent",
+      intrinsic: true,
     },
   },
 ];

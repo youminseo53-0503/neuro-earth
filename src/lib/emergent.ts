@@ -80,6 +80,7 @@ export interface EConfig {
   minW: number; // 이하면 시냅스 죽음
   refractoryTicks: number;
   nodeLifespan: number; // 이 틱 이상 비활성+저활력이면 죽음
+  spontaneous: number; // 내재 활동: 매 틱 노드가 스스로 발화 시도할 확률(0=순수 자극반응)
   seed: number;
 }
 
@@ -102,6 +103,7 @@ export const EMERGENT_DEFAULT: EConfig = {
   minW: 0.04,
   refractoryTicks: 4,
   nodeLifespan: 220,
+  spontaneous: 0,
   seed: 20260611,
 };
 
@@ -232,7 +234,7 @@ export class EmergentNetwork {
   }
 
   step() {
-    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg } = this.cfg;
+    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous } = this.cfg;
 
     // 살아있는 노드 목록 갱신
     this.aliveNodeIdx.length = 0;
@@ -268,6 +270,8 @@ export class EmergentNetwork {
         nd.inj = 0;
         continue;
       }
+      // 내재 활동 — 자극이 없어도 스스로 발화를 시작(살아있는 뇌)
+      if (spontaneous > 0 && this.rng() < spontaneous) nd.inj += 0.7;
       let a = nd.a * decay + (input.get(idx) ?? 0) + nd.inj;
       nd.inj = 0;
       if (a < 0) a = 0;
