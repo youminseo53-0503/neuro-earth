@@ -12,8 +12,8 @@ export interface TimelineMessage {
   /** 묶음 번호 (#01 …) — 민서 발화 1개 + 클로드 결과 1개가 같은 번호를 공유 */
   n: number;
   role: Role;
-  /** 표시용 시각 */
-  time: string;
+  /** (미사용) 예전 표시용 시각 — 현재 UI에는 표시하지 않음 */
+  time?: string;
   text: string;
   /** 긴 글이면 기본 접힘 */
   long?: boolean;
@@ -93,5 +93,26 @@ export const timeline: TimelineMessage[] = [
     role: "claude",
     time: "Day 1 · 15:30",
     text: "← 지금 이 화면이 그 결과물. 왼쪽은 지구 자리(곧 3D 지구본 들어옴), 오른쪽이 지금 보고 있는 이 피드. 이 대화 기록(timeline.ts)이 곧 보고서 본문이 되고, 마일스톤마다 여기 계속 쌓인다.",
+  },
+  {
+    n: 7,
+    role: "minseo",
+    text: "피드에서 시간은 빼줘. 디자인이 좀 구려.",
+  },
+  {
+    n: 7,
+    role: "claude",
+    text: "메타 라벨에서 시각 제거, 말풍선·간격 정리. 전체 디자인은 왼쪽에 진짜 3D 지구가 들어와 화면이 채워진 뒤 같이 다듬기로.",
+  },
+  {
+    n: 8,
+    role: "minseo",
+    text: "'지구 끄기'를 잘못 이해했더라. 그건 화면을 줄이는 게 아니라 3D 지구(파란 구체)만 끄고 신경 가소성 망은 그대로 남기는 거야.",
+  },
+  {
+    n: 8,
+    role: "claude",
+    text: "토글 의미 수정 — earthVisible로 변경. 레이아웃(왼쪽 3/4)은 고정, 토글은 지구 구체만 on/off, 신경망은 항상 표시. 더불어 앞으로 민서의 모든 프롬프트를 timeline.ts에 빠짐없이 기록하도록 저장소 CLAUDE.md에 규칙을 못박음(운영 잡담은 제외).",
+    long: true,
   },
 ];

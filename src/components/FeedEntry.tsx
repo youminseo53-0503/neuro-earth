@@ -34,7 +34,6 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
         <span className="font-semibold text-white/80">
           {isMinseo ? "민서" : "클로드"}
         </span>
-        <span className="text-white/35">{msg.time}</span>
       </div>
 
       {/* 말풍선 */}

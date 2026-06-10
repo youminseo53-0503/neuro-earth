@@ -5,7 +5,7 @@ import { useUI } from "@/store/useUI";
 import { FeedEntry } from "./FeedEntry";
 
 export function PromptFeed() {
-  const { globeVisible, toggleGlobe } = useUI();
+  const { earthVisible, toggleEarth } = useUI();
   const pairCount = new Set(timeline.map((m) => m.n)).size;
 
   return (
@@ -21,10 +21,10 @@ export function PromptFeed() {
           </p>
         </div>
         <button
-          onClick={toggleGlobe}
+          onClick={toggleEarth}
           className="shrink-0 rounded-lg border border-panel-border px-2.5 py-1.5 text-[11px] font-semibold text-white/70 transition hover:border-neon-cyan/50 hover:text-neon-cyan"
         >
-          {globeVisible ? "지구 끄기" : "지구 켜기"}
+          {earthVisible ? "지구 끄기" : "지구 켜기"}
         </button>
       </header>
 
