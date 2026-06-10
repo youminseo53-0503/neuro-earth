@@ -86,7 +86,8 @@ export interface EConfig {
   hormoneProb: number; // 호르몬 분비 확률(0=끔)
   hormoneRelease: number; // 분비 시 mod 증가량
   hormoneDecay: number; // mod 감쇠(느림 → 오래 유지)
-  diffuseRate: number; // mod 시냅스 확산율
+  diffuseRate: number; // mod 로컬 시냅스 확산율(천천히)
+  routeDiffuse: number; // mod 노선(축삭) 확산율(멀리 확 점프)
   modDrive: number; // mod가 흥분성에 더하는 양
   seed: number;
 }
@@ -112,9 +113,10 @@ export const EMERGENT_DEFAULT: EConfig = {
   nodeLifespan: 220,
   spontaneous: 0,
   hormoneProb: 0,
-  hormoneRelease: 4, // 분비량 ↑ (확산해도 보이게)
-  hormoneDecay: 0.9993, // 매우 느림 → 한참 유지
-  diffuseRate: 0.1, // 천천히 퍼짐 → 진하게 모여 보임 + 서서히 대륙 건넘
+  hormoneRelease: 6, // 드물지만 크게 (무작위 이벤트)
+  hormoneDecay: 0.996, // 번졌다 서서히 사라짐(누적 침수 방지, 그래도 스파이크보다 한참 김)
+  diffuseRate: 0.08, // 로컬은 천천히
+  routeDiffuse: 0.42, // 노선(축삭)으로는 멀리 확 점프
   modDrive: 0.28,
   seed: 20260611,
 };
@@ -265,7 +267,7 @@ export class EmergentNetwork {
   }
 
   step() {
-    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous, hormoneProb, hormoneRelease, hormoneDecay, diffuseRate, modDrive } = this.cfg;
+    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous, hormoneProb, hormoneRelease, hormoneDecay, diffuseRate, routeDiffuse, modDrive } = this.cfg;
 
     // 살아있는 노드 목록 갱신
     this.aliveNodeIdx.length = 0;
@@ -282,10 +284,15 @@ export class EmergentNetwork {
       } else {
         e.act *= 0.8;
       }
-      // 호르몬 확산 — 시냅스 따라 천천히 퍼짐(루트 통해 대륙 건넘)
-      const dm = (this.nodes[e.i].mod - this.nodes[e.j].mod) * diffuseRate;
-      this.nodes[e.i].mod -= dm;
-      this.nodes[e.j].mod += dm;
+      // 문화(호르몬) 비보존 전파(전염형) — 낮은 쪽이 높은 쪽×감쇠로 끌려 올라감.
+      // 원천은 안 줄어 멀리 가도 밝고, 홉마다 0.92씩 감쇠해 거리에 따라 옅어짐.
+      // 로컬은 천천히, 노선(축삭)으로는 멀리 확 점프.
+      const rate = e.route ? routeDiffuse : diffuseRate;
+      const mi = this.nodes[e.i];
+      const mj = this.nodes[e.j];
+      const att = 0.82; // 홉마다 강하게 감쇠 → 거리에 따라 옅어짐(전체 침수 방지)
+      if (mi.mod * att > mj.mod) mj.mod += (mi.mod * att - mj.mod) * rate;
+      else if (mj.mod * att > mi.mod) mi.mod += (mj.mod * att - mi.mod) * rate;
       e.w *= 1 - prune;
       if (e.w < minW) this.killSyn(s);
     }

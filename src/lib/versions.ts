@@ -146,7 +146,7 @@ export const VERSIONS: VizVersion[] = [
   {
     id: "v-hormone",
     n: 34,
-    label: "호르몬 + 연쇄반응 (항공·살아있는 뇌)",
+    label: "문화 (전 지구 전파·연쇄) — 항공 뇌",
     config: {
       showEarth: true,
       showNet: true,
