@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { EARTH_RADIUS, getSunDirection } from "@/lib/geo";
 import { Earth } from "./Earth";
+import { NeuralLayer } from "./NeuralLayer";
 
 /**
  * 왼쪽 3/4 3D 씬.
@@ -31,6 +32,9 @@ export default function GlobeScene() {
       <Suspense fallback={null}>
         <Earth />
       </Suspense>
+
+      {/* 신경 가소성 망 — 지구를 꺼도 남는다 */}
+      <NeuralLayer />
 
       <OrbitControls
         enablePan={false}

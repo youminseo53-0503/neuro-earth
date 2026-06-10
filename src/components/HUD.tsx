@@ -1,0 +1,56 @@
+"use client";
+
+import { useMetrics } from "@/store/useMetrics";
+
+/** 왼쪽 씬 위에 떠 있는 실시간 측정 readout. */
+export function HUD() {
+  const m = useMetrics((s) => s.metrics);
+
+  return (
+    <div className="pointer-events-none absolute left-4 top-4 select-none font-mono text-[11px] leading-relaxed">
+      <div className="mb-1 text-sm font-bold tracking-wide text-white">
+        NEURO·EARTH
+      </div>
+      <div className="text-white/40">살아있는 인공뇌 · 신경가소성</div>
+
+      <div className="mt-3 space-y-0.5 rounded-md border border-panel-border bg-black/40 px-3 py-2 backdrop-blur-sm">
+        <Row label="tick" value={m ? m.tick.toLocaleString() : "—"} />
+        <Row
+          label="발화 노드"
+          value={m ? `${m.firing}` : "—"}
+          accent="#00e5ff"
+        />
+        <Row
+          label="가소성 이벤트/s"
+          value={m ? `${m.plasticityEvents}` : "—"}
+          accent="#00ff9c"
+        />
+        <Row
+          label="평균 가중치"
+          value={m ? m.meanWeight.toFixed(3) : "—"}
+        />
+        <Row
+          label="총 활성도"
+          value={m ? m.totalActivation.toFixed(1) : "—"}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-6">
+      <span className="text-white/45">{label}</span>
+      <span style={{ color: accent ?? "#e6f0ff" }}>{value}</span>
+    </div>
+  );
+}
