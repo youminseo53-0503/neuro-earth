@@ -57,9 +57,10 @@ export interface ESyn {
   alive: boolean;
   i: number;
   j: number;
-  w: number;
+  w: number; // 전송 가중치(0..1, 동역학 안정 위해 제한)
   sign: number;
   act: number;
+  use: number; // 누적 사용량 — 선 굵기(거의 한계 없이 자라되 소프트 캡)
   route: boolean; // 장거리 축삭(항공 노선) — 아크로 렌더
 }
 
@@ -154,7 +155,7 @@ export class EmergentNetwork {
     this.rng = mulberry32(this.cfg.seed);
     this.nodes = Array.from({ length: this.cfg.maxNodes }, () => this.blankNode());
     this.syns = Array.from({ length: this.cfg.maxSyn }, () => ({
-      alive: false, i: 0, j: 0, w: 0, sign: 1, act: 0, route: false,
+      alive: false, i: 0, j: 0, w: 0, sign: 1, act: 0, use: 0, route: false,
     }));
     for (let i = this.cfg.maxNodes - 1; i >= 0; i--) this.freeNodes.push(i);
     for (let i = this.cfg.maxSyn - 1; i >= 0; i--) this.freeSyns.push(i);
@@ -209,6 +210,7 @@ export class EmergentNetwork {
     s.w = w ?? 0.25 + this.rng() * 0.25;
     s.sign = this.nodes[i].type;
     s.act = 0;
+    s.use = 0;
     s.route = route;
     this.nodes[i].deg++;
     this.nodes[j].deg++;
@@ -281,9 +283,12 @@ export class EmergentNetwork {
       if (this.nodes[e.i].fired) {
         input.set(e.j, (input.get(e.j) ?? 0) + e.sign * e.w);
         e.act = 1;
+        e.use += 0.05; // 쓰일 때마다 굵어짐
       } else {
         e.act *= 0.8;
       }
+      e.use *= 0.9996; // 아주 천천히 가늘어짐
+      if (e.use > 5) e.use = 5; // 소프트 캡(너무 과하진 않게)
       // 문화(호르몬) 비보존 전파(전염형) — 낮은 쪽이 높은 쪽×감쇠로 끌려 올라감.
       // 원천은 안 줄어 멀리 가도 밝고, 홉마다 0.92씩 감쇠해 거리에 따라 옅어짐.
       // 로컬은 천천히, 노선(축삭)으로는 멀리 확 점프.
@@ -308,7 +313,7 @@ export class EmergentNetwork {
         nd.fired = false;
         nd.a *= decay * 0.5;
         nd.flash *= 0.88;
-        nd.vitality *= 0.997;
+        nd.vitality *= 0.99;
         nd.mod *= hormoneDecay;
         nd.inj = 0;
         continue;
@@ -334,7 +339,7 @@ export class EmergentNetwork {
         nd.fired = false;
         nd.a = a > 1.5 ? 1.5 : a;
         nd.flash *= 0.88;
-        nd.vitality *= 0.997;
+        nd.vitality *= 0.99;
       }
     }
 

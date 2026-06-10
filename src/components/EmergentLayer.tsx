@@ -12,10 +12,14 @@ import { useMetrics } from "@/store/useMetrics";
 
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
-const ROUTE_CAP = 700; // 동시 렌더 노선 수
-const ARC_SEG = 18; // 노선 아크 분할
-const ROUTE_BULGE = 0.2; // 아크가 지표 위로 부푸는 정도
-const GOLD = new THREE.Color(1.0, 0.72, 0.25); // 호르몬 황금빛
+const SYN_CAP = 7000;
+const NODE_LV = [0.3, 0.55, 0.9, 1.35, 1.9]; // 이산 노드 크기 레벨(명확히 구분)
+const THICK_BASE = 0.0042; // 선 굵기 기준
+const ROUTE_CAP = 700;
+const ARC_SEG = 18;
+const ROUTE_BULGE = 0.2;
+const GOLD = new THREE.Color(1.0, 0.72, 0.25);
+const UP = new THREE.Vector3(0, 1, 0);
 
 function slerp(a: ENode, b: ENode, t: number): [number, number, number] {
   let dot = a.x * b.x + a.y * b.y + a.z * b.z;
@@ -29,7 +33,7 @@ function slerp(a: ENode, b: ENode, t: number): [number, number, number] {
 }
 
 /**
- * Emergent 엔진 렌더러 — 노드/시냅스 동적 생멸 + 장거리 노선(축삭) 아크.
+ * Emergent 렌더러 — 노드(5단 이산 크기) + 시냅스(굵기=사용량, 실린더) + 노선(아크/내부직선).
  */
 export function EmergentLayer() {
   const config = useViz((s) => s.config);
@@ -41,25 +45,17 @@ export function EmergentLayer() {
     config.sources.join(",") +
     "|" + (config.intrinsic ? "i" : "") +
     (config.hormone ? "h" : "");
-  const {
-    net, sources, lineGeom, lineMat, posArr, colArr, routeGeom, routeMat, rPos, rCol,
-  } = useMemo(() => {
+  const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork({
       spontaneous: config.intrinsic ? 0.01 : 0,
       hormoneProb: config.hormone ? 0.006 : 0,
     });
     const sources = makeSources(config.sources);
 
-    const cap = net.cfg.maxSyn;
-    const posArr = new Float32Array(cap * 6);
-    const colArr = new Float32Array(cap * 6);
-    const lineGeom = new THREE.BufferGeometry();
-    lineGeom.setAttribute("position", new THREE.BufferAttribute(posArr, 3));
-    lineGeom.setAttribute("color", new THREE.BufferAttribute(colArr, 3));
-    lineGeom.setDrawRange(0, 0);
-    const lineMat = new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true,
-      blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.95,
+    const synGeo = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
+    const synMat = new THREE.MeshBasicMaterial({
+      vertexColors: false, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
     });
 
     const rCount = ROUTE_CAP * (ARC_SEG - 1) * 6;
@@ -74,16 +70,20 @@ export function EmergentLayer() {
       blending: THREE.AdditiveBlending, depthWrite: false, opacity: 1,
     });
 
-    return { net, sources, lineGeom, lineMat, posArr, colArr, routeGeom, routeMat, rPos, rCol };
+    return { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
   const nodesRef = useRef<THREE.InstancedMesh>(null);
+  const synRef = useRef<THREE.InstancedMesh>(null);
   const color = useMemo(() => new THREE.Color(), []);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const dir = useMemo(() => new THREE.Vector3(), []);
   const tickRef = useRef(0);
   const frameRef = useRef(0);
+  const prevSyn = useRef(0);
 
+  // 외부 데이터 refresh
   useEffect(() => {
     const acs: AbortController[] = [];
     const timers: ReturnType<typeof setInterval>[] = [];
@@ -101,9 +101,22 @@ export function EmergentLayer() {
     };
   }, [sources]);
 
+  // 시냅스 인스턴스 초기 숨김
+  useEffect(() => {
+    const m = synRef.current;
+    if (!m) return;
+    dummy.scale.setScalar(0);
+    dummy.position.set(0, 0, 0);
+    dummy.updateMatrix();
+    for (let k = 0; k < SYN_CAP; k++) m.setMatrixAt(k, dummy.matrix);
+    m.instanceMatrix.needsUpdate = true;
+    prevSyn.current = 0;
+  }, [dummy]);
+
   useFrame(() => {
     const mesh = nodesRef.current;
-    if (!mesh) return;
+    const sm = synRef.current;
+    if (!mesh || !sm) return;
     const tick = tickRef.current++;
 
     for (const src of sources) {
@@ -115,9 +128,10 @@ export function EmergentLayer() {
       }
     }
     net.step();
-
-    // 노드
     const nodes = net.nodes;
+    const syns = net.syns;
+
+    // 노드 — 이산 크기 레벨 + 색(흥분/억제 + 문화 황금빛)
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
       if (!n.alive) {
@@ -130,19 +144,18 @@ export function EmergentLayer() {
       const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
       if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
       else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
-      if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2)); // 문화 물듦(그라데이션)
+      if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2));
       mesh.setColorAt(i, color);
-      const s = 0.25 + n.vitality * 1.1 + n.mod * 0.12; // 문화 받으면 살짝 부풂
+      const lvi = Math.min(4, Math.floor(n.vitality / 0.32));
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
-      dummy.scale.setScalar(s);
+      dummy.scale.setScalar(NODE_LV[lvi]);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
-    // 시냅스 (로컬은 직선 / 노선은 아래에서 아크로)
-    const syns = net.syns;
+    // 시냅스 — 굵기=사용량(use)인 실린더 (로컬 연결, 노선 제외)
     let c = 0;
     for (let s = 0; s < syns.length; s++) {
       const e = syns[s];
@@ -150,22 +163,36 @@ export function EmergentLayer() {
       const a = nodes[e.i];
       const b = nodes[e.j];
       if (!a.alive || !b.alive) continue;
-      const t = Math.min(1, e.act * (0.5 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.4);
-      let r: number, g: number, bl: number;
-      if (e.sign > 0) { r = 0.1 * t; g = 0.9 * t; bl = 0.7 * t; }
-      else { r = 0.9 * t; g = 0.2 * t; bl = 0.35 * t; }
-      const o = c * 6;
-      posArr[o] = a.x * SURF; posArr[o + 1] = a.y * SURF; posArr[o + 2] = a.z * SURF;
-      posArr[o + 3] = b.x * SURF; posArr[o + 4] = b.y * SURF; posArr[o + 5] = b.z * SURF;
-      colArr[o] = r; colArr[o + 1] = g; colArr[o + 2] = bl;
-      colArr[o + 3] = r; colArr[o + 4] = g; colArr[o + 5] = bl;
+      const ax = a.x * SURF, ay = a.y * SURF, az = a.z * SURF;
+      const bx = b.x * SURF, by = b.y * SURF, bz = b.z * SURF;
+      dir.set(bx - ax, by - ay, bz - az);
+      const len = dir.length();
+      if (len < 1e-5) continue;
+      dir.divideScalar(len);
+      const th = THICK_BASE * (0.18 + Math.min(e.use, 5) * 0.42);
+      dummy.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+      dummy.quaternion.setFromUnitVectors(UP, dir);
+      dummy.scale.set(th, len, th);
+      dummy.updateMatrix();
+      sm.setMatrixAt(c, dummy.matrix);
+      const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35);
+      if (e.sign > 0) color.setRGB(0.12 * t, 0.85 * t, 0.65 * t);
+      else color.setRGB(0.85 * t, 0.2 * t, 0.35 * t);
+      sm.setColorAt(c, color);
       c++;
     }
-    lineGeom.setDrawRange(0, c * 2);
-    lineGeom.attributes.position.needsUpdate = true;
-    lineGeom.attributes.color.needsUpdate = true;
+    // 줄어든 만큼 숨김
+    if (prevSyn.current > c) {
+      dummy.scale.setScalar(0);
+      dummy.position.set(0, 0, 0);
+      dummy.updateMatrix();
+      for (let k = c; k < prevSyn.current; k++) sm.setMatrixAt(k, dummy.matrix);
+    }
+    prevSyn.current = c;
+    sm.instanceMatrix.needsUpdate = true;
+    if (sm.instanceColor) sm.instanceColor.needsUpdate = true;
 
-    // 노선(축삭) — 대권 아크로, 지표 위로 부풀려서
+    // 노선(축삭) — 지구 켜면 아크, 끄면 내부 직선
     let rc = 0;
     const maxSeg = ROUTE_CAP * (ARC_SEG - 1);
     for (let s = 0; s < syns.length && rc < maxSeg; s++) {
@@ -177,7 +204,6 @@ export function EmergentLayer() {
       const tc = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
       const r = 0.5 * tc, g = 0.8 * tc, bl = 1.0 * tc;
       if (earthShown) {
-        // 지구 켬 → 지표 위 대권 아크(항공 노선 지도처럼)
         let px = 0, py = 0, pz = 0;
         for (let k = 0; k < ARC_SEG; k++) {
           const tt = k / (ARC_SEG - 1);
@@ -196,7 +222,6 @@ export function EmergentLayer() {
           px = x; py = y; pz = z;
         }
       } else if (rc < maxSeg) {
-        // 지구 끔 → 내부를 관통하는 직선(현) = 3D 신경 코어
         const o = rc * 6;
         rPos[o] = a.x * SURF; rPos[o + 1] = a.y * SURF; rPos[o + 2] = a.z * SURF;
         rPos[o + 3] = b.x * SURF; rPos[o + 4] = b.y * SURF; rPos[o + 5] = b.z * SURF;
@@ -216,8 +241,8 @@ export function EmergentLayer() {
 
   return (
     <group>
-      <lineSegments geometry={lineGeom} material={lineMat} frustumCulled={false} />
       <lineSegments geometry={routeGeom} material={routeMat} frustumCulled={false} />
+      <instancedMesh ref={synRef} args={[synGeo, synMat, SYN_CAP]} frustumCulled={false} />
       <instancedMesh
         ref={nodesRef}
         args={[undefined, undefined, net.nodes.length]}
