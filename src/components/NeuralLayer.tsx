@@ -101,6 +101,7 @@ export function NeuralLayer() {
     const tick = tickRef.current++;
     const weightMode = config.colorMode === "weight";
     const gain = config.gain ?? 1;
+    const grow = config.grow ?? false;
 
     for (const src of sources) {
       if (!src.enabled) continue;
@@ -121,8 +122,8 @@ export function NeuralLayer() {
         color.setRGB(0.55 + act * 0.45, 0.08 + act * 0.27, 0.4 + act * 0.45);
       }
       mesh.setColorAt(i, color);
-      // 크기 = vitality (자주 쓰인 허브는 커지고, 안 쓰이면 점으로 줄어듦)
-      const s = 0.18 + n.vitality * 1.1;
+      // grow 버전에서만 크기=vitality (허브는 커지고 안 쓰이면 점으로). 옛 버전은 고정
+      const s = grow ? 0.18 + n.vitality * 1.1 : 1;
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
       dummy.scale.setScalar(s);
       dummy.updateMatrix();

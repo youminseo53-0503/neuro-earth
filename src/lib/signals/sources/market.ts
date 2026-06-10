@@ -45,16 +45,20 @@ export function createMarketSource(): SignalSource {
         const d = JSON.parse(e.data)?.data;
         if (!d?.s || !d?.p) return;
         const price = parseFloat(d.p);
+        const qty = parseFloat(d.q);
         const place = PLACES[d.s];
         if (!place || !Number.isFinite(price)) return;
         const prev = last[d.s];
         last[d.s] = price;
         if (prev === undefined) return;
+        // 체결 금액(가격×수량)으로 세기 가중 → 큰 거래가 큰 자극(규모 반영)
+        const notional = price * (Number.isFinite(qty) ? qty : 0);
+        const mag = Math.max(0.5, Math.min(1.6, 0.45 + Math.log10(notional + 1) / 5));
         // 가격 ↑ = 흥분(+), ↓ = 억제(−)
         buffer.push({
           lat: place[0],
           lon: place[1],
-          strength: price >= prev ? 0.9 : -1.0,
+          strength: price >= prev ? mag : -mag,
           radius: 0.12,
         });
         if (buffer.length > 400) buffer.splice(0, buffer.length - 400);
