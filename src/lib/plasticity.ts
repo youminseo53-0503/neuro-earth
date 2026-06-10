@@ -56,6 +56,8 @@ export interface PlasticityConfig {
   ltd: number;
   /** 미사용 연결 전역 가지치기율 */
   prune: number;
+  /** 노드 위치 무작위 지터(도) */
+  jitter: number;
   /** 발화 후 불응 틱 수 */
   refractoryTicks: number;
   /** 노드별 입력 가중치 |합| 정규화 목표(시냅스 스케일링) */
@@ -73,6 +75,7 @@ export const DEFAULT_CONFIG: PlasticityConfig = {
   ltp: 0.04,
   ltd: 0.02,
   prune: 0.001,
+  jitter: 4,
   refractoryTicks: 4,
   targetDrive: 1.8,
   seed: 20260611,
@@ -88,7 +91,6 @@ export interface PlasticityMetrics {
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const DEG = 180 / Math.PI;
-const JITTER_DEG = 4; // 노드 위치 무작위 지터(너무 규칙적인 격자 완화)
 
 export class PlasticityNetwork {
   readonly cfg: PlasticityConfig;
@@ -124,8 +126,8 @@ export class PlasticityNetwork {
       let lon = (k * GOLDEN_ANGLE * DEG) % 360;
       if (lon > 180) lon -= 360;
       // 무작위 지터(격자 느낌 완화)
-      lat += (this.rng() - 0.5) * JITTER_DEG;
-      lon += (this.rng() - 0.5) * JITTER_DEG;
+      lat += (this.rng() - 0.5) * this.cfg.jitter;
+      lon += (this.rng() - 0.5) * this.cfg.jitter;
       lat = Math.max(-89, Math.min(89, lat));
       // latLonToVec3와 동일 규약 → injectStimulus·지구 텍스처와 정렬
       const phi = (90 - lat) / DEG;

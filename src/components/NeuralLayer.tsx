@@ -5,25 +5,28 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { PlasticityNetwork } from "@/lib/plasticity";
 import { EARTH_RADIUS } from "@/lib/geo";
-import { createSources } from "@/lib/signals/registry";
+import { makeSources } from "@/lib/signals/registry";
 import { useMetrics } from "@/store/useMetrics";
+import { useViz } from "@/store/useViz";
 
-const SURF = EARTH_RADIUS * 1.014; // 지표보다 살짝 위
+const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
 
 /**
- * 지구 위 신경 가소성 망.
- *   · 노드 = instancedMesh, 활성/발화로 색 변함 (흥분=시안 / 억제=마젠타)
- *   · 시냅스 = lineSegments(가산 블렌딩), 밝기 ∝ 가중치 → 가소성이 눈에 보임
- *   · 매 프레임: 신호 주입 → 엔진 step → 색 갱신
- * earthVisible와 무관하게 항상 표시(지구 꺼도 뇌는 남는다).
+ * 지구 위 신경 가소성 망 (버전 config 기반).
+ *   · showNet / colorMode(weight=줄전구, act=신호흐름) / jitter / sources 를
+ *     useViz 프리셋에서 읽어 그 버전대로 렌더 → "살아있는 보고서"의 시간여행.
+ *   · 구조 파라미터(jitter·sources) 변경 시 망을 재생성.
  */
 export function NeuralLayer() {
+  const config = useViz((s) => s.config);
   const setMetrics = useMetrics((s) => s.set);
 
+  // 구조가 바뀌면(지터·소스) 재생성
+  const sig = config.jitter + "|" + config.sources.join(",");
   const { net, sources, nodeMatrices, lineGeom, lineMat } = useMemo(() => {
-    const net = new PlasticityNetwork();
-    const sources = createSources();
+    const net = new PlasticityNetwork({ jitter: config.jitter });
+    const sources = makeSources(config.sources);
 
     const dummy = new THREE.Object3D();
     const nodeMatrices = net.nodes.map((n) => {
@@ -58,40 +61,36 @@ export function NeuralLayer() {
     });
 
     return { net, sources, nodeMatrices, lineGeom, lineMat };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig]);
 
   const nodesRef = useRef<THREE.InstancedMesh>(null);
   const color = useMemo(() => new THREE.Color(), []);
   const tickRef = useRef(0);
   const frameRef = useRef(0);
 
-  // 노드 위치(고정) 1회 설정
   useEffect(() => {
     const mesh = nodesRef.current;
     if (!mesh) return;
-    for (let i = 0; i < nodeMatrices.length; i++) {
-      mesh.setMatrixAt(i, nodeMatrices[i]);
-    }
+    for (let i = 0; i < nodeMatrices.length; i++) mesh.setMatrixAt(i, nodeMatrices[i]);
     mesh.instanceMatrix.needsUpdate = true;
   }, [nodeMatrices]);
 
   useFrame(() => {
     const mesh = nodesRef.current;
-    if (!mesh) return;
+    if (!mesh || !config.showNet) return;
     const tick = tickRef.current++;
+    const weightMode = config.colorMode === "weight";
 
-    // 1) 신호 주입
     for (const src of sources) {
       if (!src.enabled) continue;
       const events = src.poll(tick);
       for (const ev of events)
         net.injectStimulus(ev.lat, ev.lon, ev.strength, ev.radius);
     }
-
-    // 2) 엔진 한 틱
     net.step();
 
-    // 3) 노드 색 (활성/발화 → 밝기)
+    // 노드 색
     const nodes = net.nodes;
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
@@ -105,17 +104,14 @@ export function NeuralLayer() {
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
-    // 4) 시냅스 색 (가중치 → 밝기 = 가소성 가시화)
+    // 시냅스 색
     const arr = lineGeom.attributes.color.array as Float32Array;
     const syn = net.synapses;
     for (let s = 0; s < syn.length; s++) {
       const e = syn[s];
-      // 밝기 = 최근 신호 통과(act, 지배적) + 강하게 학습된 경로의 희미한 잔존
-      // → 신호 없는 곳은 자연히 사라지고, 자주 쓰인 길만 살아남는다
-      const t = Math.min(
-        1,
-        e.act * (0.45 + 0.55 * e.w) + Math.max(0, e.w - 0.32) * 0.4,
-      );
+      const t = weightMode
+        ? Math.min(1, e.w) // 옛 버전: 정적 가중치(줄전구)
+        : Math.min(1, e.act * (0.45 + 0.55 * e.w) + Math.max(0, e.w - 0.32) * 0.4);
       let r: number, g: number, b: number;
       if (e.sign > 0) {
         r = 0.1 * t;
@@ -136,9 +132,10 @@ export function NeuralLayer() {
     }
     lineGeom.attributes.color.needsUpdate = true;
 
-    // 5) 지표 (스로틀)
     if (frameRef.current++ % 12 === 0) setMetrics(net.metrics);
   });
+
+  if (!config.showNet) return null;
 
   return (
     <group>

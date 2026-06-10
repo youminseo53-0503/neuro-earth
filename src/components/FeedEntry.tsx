@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { TimelineMessage } from "@/data/timeline";
+import { versionForEntry } from "@/lib/versions";
+import { useViz } from "@/store/useViz";
 
 const PREVIEW_LEN = 110;
 
@@ -9,6 +11,10 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
   const isMinseo = msg.role === "minseo";
   const collapsible = Boolean(msg.long) && msg.text.length > PREVIEW_LEN;
   const [open, setOpen] = useState(false);
+
+  const version = msg.role === "claude" ? versionForEntry(msg.n) : undefined;
+  const activeId = useViz((s) => s.versionId);
+  const setVersion = useViz((s) => s.setVersion);
 
   const shown =
     collapsible && !open ? msg.text.slice(0, PREVIEW_LEN).trimEnd() + "…" : msg.text;
@@ -19,7 +25,6 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
         isMinseo ? "items-end" : "items-start"
       }`}
     >
-      {/* 메타 라벨 */}
       <div
         className={`flex items-center gap-2 px-1 text-[11px] tracking-wide ${
           isMinseo ? "flex-row-reverse" : ""
@@ -36,7 +41,6 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
         </span>
       </div>
 
-      {/* 말풍선 */}
       <div
         className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm ${
           isMinseo
@@ -56,6 +60,20 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
           </button>
         )}
       </div>
+
+      {version && (
+        <button
+          onClick={() => setVersion(version.id)}
+          className={`mt-0.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition ${
+            activeId === version.id
+              ? "border-neon-green/60 bg-neon-green/10 text-neon-green"
+              : "border-panel-border text-white/60 hover:border-neon-cyan/50 hover:text-neon-cyan"
+          }`}
+        >
+          {activeId === version.id ? "● 이 버전 보는 중" : "▶ 이 버전 보기"} ·{" "}
+          {version.label}
+        </button>
+      )}
     </div>
   );
 }
