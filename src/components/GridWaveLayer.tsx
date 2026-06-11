@@ -7,7 +7,8 @@ import { PlasticityNetwork } from "@/lib/plasticity";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { makeSources } from "@/lib/signals/registry";
 
-const SURF = EARTH_RADIUS * 0.997; // 항공망보다 살짝 안쪽 = '이미 깔린 기반 인프라'
+const SURF = EARTH_RADIUS * 1.005; // 지표 '바로 위'(항공망 1.014보다 아래) = 지표를 기는 기반 인프라
+// (×0.997은 지구 표면 안쪽이라 지구 켜면 불투명 구체에 가려져 안 보였음)
 const NODE_SIZE = 0.013;
 const REST_SCALE = 0.28; // 흥분 전엔 거의 점(버전9처럼 0에 가깝게)
 const GROW_SCALE = 1.55; // 흥분(파동 통과)하면 부풂 → 파동이 눈에 보임
@@ -90,7 +91,7 @@ export function GridWaveLayer() {
     for (const src of sources) {
       if (!src.enabled) continue;
       for (const ev of src.poll(tick))
-        net.injectStimulus(ev.lat, ev.lon, ev.strength, ev.radius);
+        net.injectStimulus(ev.lat, ev.lon, ev.strength * 0.6, ev.radius); // 활성 낮춤
     }
     net.step();
 
@@ -100,8 +101,8 @@ export function GridWaveLayer() {
       const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
       // 목표 활성으로 부드럽게 수렴 → 점프 없이 점진적으로 부풀고 가라앉음
       const v = (vis[i] += (act - vis[i]) * EASE);
-      // 보라색 계열(항공망 시안/마젠타와 구분)
-      color.setRGB(0.35 + v * 0.55, 0.1 + v * 0.35, 0.7 + v * 0.3);
+      // 보라색 계열(항공망 시안/마젠타와 구분). 쉴 땐 어둡게 — 활성 낮춤
+      color.setRGB(0.2 + v * 0.5, 0.04 + v * 0.3, 0.42 + v * 0.34);
       mesh.setColorAt(i, color);
       // 흥분 전엔 거의 점 → 파동이 지나가며 천천히 부풂(크기로 파동이 보임)
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
@@ -117,7 +118,7 @@ export function GridWaveLayer() {
     for (let s = 0; s < syn.length; s++) {
       const e = syn[s];
       const t = Math.min(1, e.act * (0.45 + 0.55 * e.w) + Math.max(0, e.w - 0.32) * 0.4);
-      const r = 0.45 * t, g = 0.16 * t, b = 0.8 * t;
+      const r = 0.3 * t, g = 0.1 * t, b = 0.55 * t;
       const o = s * 6;
       arr[o] = r; arr[o + 1] = g; arr[o + 2] = b;
       arr[o + 3] = r; arr[o + 4] = g; arr[o + 5] = b;
