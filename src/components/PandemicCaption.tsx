@@ -12,7 +12,7 @@ export function PandemicCaption() {
   if (!active) return null;
 
   const pct = Math.round(infectedPct * 100);
-  const frozen = phase === "lockdown" || phase === "recovery";
+  const frozen = phase === "peak" || phase === "lockdown" || phase === "recovery";
 
   return (
     <div className="pointer-events-none absolute bottom-20 left-1/2 z-20 -translate-x-1/2 select-none text-center">
@@ -22,7 +22,7 @@ export function PandemicCaption() {
       >
         {dateLabel}
       </div>
-      <div className="mt-2 text-sm font-medium tracking-wide text-white/65">{caption}</div>
+      <div className="mt-2 text-base font-medium tracking-wide text-white/80">{caption}</div>
 
       {/* 감염률 바 */}
       <div className="mx-auto mt-3 flex w-64 items-center gap-2">

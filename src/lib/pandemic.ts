@@ -16,7 +16,8 @@ export type PandemicPhase =
   | "outbreak"   // 우한 — 한 점 빨강
   | "spreading"  // 항공로 따라 천천히 번짐
   | "saturating" // 삽시간 포화(싹 빨강으로 수렴)
-  | "lockdown"   // 대봉쇄 — 교류 거의 멎음(최소 운항만)
+  | "peak"       // 전 세계 감염 — 지구 켠 채 ~5초 보여줌(어디가 빨간지 이해되게)
+  | "lockdown"   // 대봉쇄 — 그제서야 지구 꺼지고 교류 멎음(최소 운항만)
   | "recovery";  // 더딘 회복 — 다시 이어지는 하늘길
 
 export interface PandemicHud {
@@ -54,6 +55,7 @@ export class PandemicDirector {
   private OUTBREAK = 160;   // 한 점이 자리잡는 잠복
   private SPREAD = 1500;    // 번짐 구간(천천히 보이게)
   private SAT = 300;        // 삽시간 포화 한계
+  private PEAK = 300;       // 싹 빨개진 채 지구 켜고 ~5초 holding(상황 이해)
   private LOCK = 240;       // 대봉쇄 저점 유지(~4초)
   private REC = 3000;       // 회복 램프(2020.5→2021.6) — 아주 더디게(틱 ≈ 프레임, ~50초)
 
@@ -101,7 +103,7 @@ export class PandemicDirector {
         net.frozen = false;
         const p = net.metrics.nodes / this.ACTIVE_N;
         dateLabel = monthLabel(lerp(M(2019, 9), M(2019, 11), p));
-        caption = "세계가 깨어난다 — 분주해지는 하늘";
+        caption = "세계가 깨어난다 — 자라나는 항공망";
         if (net.metrics.nodes >= this.ACTIVE_N || local >= this.MAX_GROW) {
           this.go("calm", tick);
         }
@@ -110,7 +112,7 @@ export class PandemicDirector {
       case "calm": {
         // 분주한 세계의 잠깐의 평온 — 빨강 시작을 ~5초 뒤로
         dateLabel = monthLabel(lerp(M(2019, 11), M(2019, 12), local / this.CALM));
-        caption = "2019 — 그 어느 때보다 분주했던 세계";
+        caption = "2019 — 그 어느 때보다 분주한 하늘";
         if (local >= this.CALM) {
           net.cfg.pandemic = true;
           net.cfg.infectRate = 0.03; // 천천히 기어가는 파동
@@ -123,7 +125,7 @@ export class PandemicDirector {
       }
       case "outbreak": {
         dateLabel = monthLabel(M(2019, 12));
-        caption = "2019년 12월, 우한 — 원인 모를 폐렴";
+        caption = "2019년 12월 · 우한 — 첫 감염원 한 점";
         if (infectedPct === 0) net.seedInfection(WUHAN[0], WUHAN[1]); // 자리 잡을 때까지
         if (local >= this.OUTBREAK) this.go("spreading", tick);
         break;
@@ -131,7 +133,7 @@ export class PandemicDirector {
       case "spreading": {
         const p = local / this.SPREAD;
         dateLabel = monthLabel(lerp(M(2020, 1), M(2020, 3), p));
-        caption = "항공로를 따라 — 바이러스는 국경을 모른다";
+        caption = "2020년 초 — 항공로를 타고 번지는 감염";
         if (infectedPct === 0) net.seedInfection(WUHAN[0], WUHAN[1]);
         if (infectedPct >= 0.55 || local >= this.SPREAD) {
           net.cfg.infectRate = 0.28; // 전염 가속(삽시간 포화)
@@ -142,23 +144,32 @@ export class PandemicDirector {
       }
       case "saturating": {
         dateLabel = monthLabel(M(2020, 3));
-        caption = "2020.3.11 WHO 팬데믹 선언 — 삽시간이었다";
+        caption = "2020년 3월 11일 · WHO 팬데믹 선언 — 폭발적 확산";
         if (infectedPct >= 0.9 || local >= this.SAT) {
           net.infectAll(); // 남은 점까지 — 싹 빨강
           net.cfg.infectRate = 0; // 더는 새 감염 없음
-          this.go("lockdown", tick);
+          this.go("peak", tick);
         }
         break;
       }
+      case "peak": {
+        // 전 세계 감염 — 지구를 켠 채 ~5초 보여준다(어느 대륙이 빨간지 눈으로 이해되게).
+        // 아직 봉쇄 전이라 항공편은 그대로 분주(슈퍼전파). 그래서 지구도 아직 안 끈다.
+        climax = false;
+        dateLabel = monthLabel(M(2020, 3));
+        caption = "전 세계 감염 — 모든 대륙이 빨갛게 물들다";
+        if (local >= this.PEAK) this.go("lockdown", tick);
+        break;
+      }
       case "lockdown": {
-        // 대봉쇄 — 완전 정지(멸종)가 아니라 교류가 거의 멎음. 최소 운항·신호는 살아있음.
-        climax = true; // 클라이맥스 — 지구 자동 끄기·회전 가속
+        // 그제서야 대봉쇄 — 지구가 꺼지고(클라이맥스) 하늘길이 멎는다. 완전 정지는 아님(최소 운항).
+        climax = true; // 이제 지구 자동 끄기·회전 가속
         const p = local / this.LOCK;
         halt = lerp(1, 0.1, p);          // 노선 밝기 1→0.1(완전 0 아님 — 화물·필수편 잔존)
         injectScale = lerp(1, 0.06, p);  // 항공편 1→0.06(최소 운항)
         nodeScale = lerp(1, 0.5, p);     // 노드 자극 절반까지만(흐려지되 빨강은 또렷)
         dateLabel = monthLabel(M(2020, 4));
-        caption = "대봉쇄 — 하늘길이 거의 멎다 (항공편 -73%)";
+        caption = "대봉쇄 — 하늘길이 멎고 세계가 멈춰서다 (항공편 -73%)";
         if (local >= this.LOCK) {
           net.cfg.pandemic = false; // 엔진 자동 전이/재유행 끔 — 회복은 디렉터가 천천히 직접
           this.go("recovery", tick);
@@ -173,7 +184,7 @@ export class PandemicDirector {
         injectScale = lerp(0.06, 0.5, p); // 항공 운항 회복
         nodeScale = lerp(0.5, 0.9, p);    // 세계가 다시 깨어남 — 노드 밝기 회복(출생은 절제)
         dateLabel = monthLabel(lerp(M(2020, 5), M(2021, 6), p));
-        caption = "그래도 멈추진 않았다 — 더디게 다시 이어지는 하늘길";
+        caption = "2020–2021 — 더디게 회복하는 세계, 다시 잇는 하늘길";
         // 아주 더딘 치유 — 매 프레임 극소수만 무작위로 단계 진행(물결처럼 흩어). 후반일수록 살짝 가속.
         // 빨강이 2020 내내 남아있다가 2021로 가며 천천히 걷히게.
         const toRec = 0.0004 + 0.0012 * p;  // 감염(빨강)→회복(파랑)
