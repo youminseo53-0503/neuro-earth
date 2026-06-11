@@ -3,6 +3,7 @@
 import { useMetrics } from "@/store/useMetrics";
 import { useViz } from "@/store/useViz";
 import { VERSIONS } from "@/lib/versions";
+import { scenarioById } from "@/lib/scenarios";
 
 /** 왼쪽 씬 위에 떠 있는 실시간 측정 readout. */
 export function HUD() {
@@ -10,7 +11,9 @@ export function HUD() {
   const e = useMetrics((s) => s.emergent);
   const engine = useViz((s) => s.config.engine ?? "grid");
   const versionId = useViz((s) => s.versionId);
+  const scenarioId = useViz((s) => s.scenarioId);
   const version = VERSIONS.find((v) => v.id === versionId);
+  const scenario = scenarioById(scenarioId);
 
   return (
     <div className="pointer-events-none absolute left-4 top-4 select-none font-mono text-[11px] leading-relaxed">
@@ -19,10 +22,23 @@ export function HUD() {
       </div>
       <div className="text-white/40">살아있는 인공뇌 · 신경가소성</div>
 
-      {version && (
-        <div className="mt-2 inline-block rounded border border-neon-green/40 bg-neon-green/5 px-2 py-0.5 text-[10px] text-neon-green">
-          버전: {version.label}
+      {/* 정직성 표시: 진짜 실시간인지 / 재구성 시나리오인지 */}
+      {scenario ? (
+        <div
+          className={`mt-2 inline-block rounded px-2 py-0.5 text-[10px] ${
+            scenario.kind === "live"
+              ? "border border-neon-green/40 bg-neon-green/5 text-neon-green"
+              : "border border-amber-400/40 bg-amber-400/5 text-amber-300"
+          }`}
+        >
+          {scenario.kind === "live" ? "● LIVE · 실시간" : `시나리오(가상) · ${scenario.label}`}
         </div>
+      ) : (
+        version && (
+          <div className="mt-2 inline-block rounded border border-neon-green/40 bg-neon-green/5 px-2 py-0.5 text-[10px] text-neon-green">
+            버전: {version.label}
+          </div>
+        )
       )}
 
       <div className="mt-3 space-y-0.5 rounded-md border border-panel-border bg-black/40 px-3 py-2 backdrop-blur-sm">

@@ -1,18 +1,27 @@
 import { create } from "zustand";
 import { LATEST, VERSIONS, type VizConfig } from "@/lib/versions";
+import { SCENARIOS, DEFAULT_SCENARIO } from "@/lib/scenarios";
 
 interface VizState {
   config: VizConfig;
   versionId: string;
+  /** 현재 시나리오 프리셋(실시간/창세/팬데믹/회복). 과거 버전 탐색 중엔 "" */
+  scenarioId: string;
   setVersion: (id: string) => void;
+  setScenario: (id: string) => void;
 }
 
-/** 현재 보고 있는 시각 버전(프리셋). 로그의 '이 버전 보기' 버튼이 바꾼다. */
+/** 현재 보고 있는 시각 상태. 시나리오 바(프리셋) + 버전 리모컨(과거 탐색)이 바꾼다. */
 export const useViz = create<VizState>((set) => ({
-  config: LATEST.config,
+  config: DEFAULT_SCENARIO.config,
   versionId: LATEST.id,
+  scenarioId: DEFAULT_SCENARIO.id,
   setVersion: (id) => {
     const v = VERSIONS.find((x) => x.id === id);
-    if (v) set({ config: v.config, versionId: id });
+    if (v) set({ config: v.config, versionId: id, scenarioId: "" }); // 과거 버전 탐색 = 시나리오 해제
+  },
+  setScenario: (id) => {
+    const s = SCENARIOS.find((x) => x.id === id);
+    if (s && s.status === "ready") set({ config: s.config, scenarioId: id, versionId: "" });
   },
 }));
