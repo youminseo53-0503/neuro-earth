@@ -8,7 +8,9 @@ import { EARTH_RADIUS } from "@/lib/geo";
 import { makeSources } from "@/lib/signals/registry";
 
 const SURF = EARTH_RADIUS * 0.997; // 항공망보다 살짝 안쪽 = '이미 깔린 기반 인프라'
-const NODE_SIZE = 0.011;
+const NODE_SIZE = 0.013;
+const REST_SCALE = 0.28; // 흥분 전엔 거의 점(버전9처럼 0에 가깝게)
+const GROW_SCALE = 1.55; // 흥분(파동 통과)하면 부풂 → 파동이 눈에 보임
 
 /**
  * 그리드 파동 레이어 — 고정 격자 신경망('이미 깔린 인프라') 위로
@@ -23,6 +25,7 @@ export function GridWaveLayer() {
     const dummy = new THREE.Object3D();
     const nodeMatrices = net.nodes.map((n) => {
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
+      dummy.scale.setScalar(REST_SCALE); // 초기엔 점
       dummy.updateMatrix();
       return dummy.matrix.clone();
     });
@@ -49,6 +52,7 @@ export function GridWaveLayer() {
 
   const nodesRef = useRef<THREE.InstancedMesh>(null);
   const color = useMemo(() => new THREE.Color(), []);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
   const tickRef = useRef(0);
 
   useEffect(() => {
@@ -94,7 +98,13 @@ export function GridWaveLayer() {
       // 보라색 계열(항공망 시안/마젠타와 구분)
       color.setRGB(0.35 + act * 0.55, 0.1 + act * 0.35, 0.7 + act * 0.3);
       mesh.setColorAt(i, color);
+      // 흥분 전엔 거의 점 → 파동이 지나가며 부풂(크기로 파동이 보임)
+      dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
+      dummy.scale.setScalar(REST_SCALE + act * GROW_SCALE);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
     }
+    mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
     const arr = lineGeom.attributes.color.array as Float32Array;
