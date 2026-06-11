@@ -30,7 +30,22 @@ export interface PandemicHud {
   injectScale: number;  // 항공편(노선) 주입 비율(0..1) — 봉쇄 시 최소 운항
   nodeScale: number;    // 노드 자극 세기(0..1) — 너무 흐려지지 않게 바닥값 유지(봉쇄 0.5)
   climax: boolean;      // 클라이맥스(지구 자동 끄기·회전 가속)
+  camDist: number;      // 시네마틱 카메라 목표 거리(돌리). 0이면 사용자 자유
 }
+
+// 단계별 카메라 연출(돌리 목표 거리). EARTH_RADIUS=2, 기본 카메라 6, 범위 [3.2, 14].
+//   발병=살짝 push-in / 정점=확 pull-back(전 세계 빨강을 한눈에) / 오늘=놓아줌(0).
+const CAM: Record<PandemicPhase, number> = {
+  growing: 6,
+  calm: 6,
+  outbreak: 5,
+  spreading: 6,
+  saturating: 5.4,
+  peak: 8.6,
+  lockdown: 6.2,
+  recovery: 6.6,
+  present: 0,
+};
 
 const WUHAN: [number, number] = [30.6, 114.3];
 
@@ -221,6 +236,6 @@ export class PandemicDirector {
       }
     }
 
-    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, nodeScale, climax };
+    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, nodeScale, climax, camDist: CAM[this.phase] };
   }
 }

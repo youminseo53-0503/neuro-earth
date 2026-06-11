@@ -18,6 +18,13 @@ interface UIState {
    */
   spin: number;
   setSpin: (v: number) => void;
+
+  /**
+   * 시네마틱 카메라 목표 거리(돌리). 0이면 비활성 → 사용자가 자유롭게 줌.
+   * >0이면 GlobeScene이 매 프레임 카메라를 그 거리로 천천히 끌어당긴다(연출용 push-in/pull-back).
+   */
+  camDist: number;
+  setCamDist: (v: number) => void;
 }
 
 export const BASE_SPIN = 0.25;
@@ -29,4 +36,7 @@ export const useUI = create<UIState>((set) => ({
 
   spin: BASE_SPIN,
   setSpin: (v) => set({ spin: v }),
+
+  camDist: 0,
+  setCamDist: (v) => set((s) => (s.camDist === v ? s : { camDist: v })),
 }));

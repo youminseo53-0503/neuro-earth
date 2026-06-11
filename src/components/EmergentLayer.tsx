@@ -299,10 +299,11 @@ export function EmergentLayer() {
     return () => setPandemic({ active: false });
   }, [config.pandemicArc, setPandemic]);
 
-  // 언마운트(엔진 전환 등) 시 회전 원복 + 클라이맥스로 껐던 지구는 다시 켬
+  // 언마운트(엔진 전환 등) 시 회전·카메라 원복 + 클라이맥스로 껐던 지구는 다시 켬
   useEffect(() => {
     return () => {
       useUI.getState().setSpin(BASE_SPIN);
+      useUI.getState().setCamDist(0);
       if (prevClimax.current) useUI.getState().setEarthVisible(true);
     };
   }, []);
@@ -381,6 +382,8 @@ export function EmergentLayer() {
     const climax = (arc?.climax ?? false) || genesisGrown;
     const ui = useUI.getState();
     ui.setSpin(THREE.MathUtils.lerp(ui.spin, climax ? 1.4 : BASE_SPIN, 0.02));
+    // 카메라 돌리 — 팬데믹은 단계별 연출, 창세 클라이맥스는 pull-back, 그 외엔 0(사용자 자유)
+    ui.setCamDist(arc ? arc.camDist : genesisGrown ? 8.6 : 0);
     // 지구 끄기/켜기는 '엣지에서 1회성'으로만 — 그 사이엔 사용자의 '지구 켜기' 버튼이 이긴다.
     if (climax !== prevClimax.current) {
       ui.setEarthVisible(!climax); // 진입 → 자동 끔 / 해제 → 다시 켬
