@@ -10,9 +10,9 @@ import { makeSources } from "@/lib/signals/registry";
 const SURF = EARTH_RADIUS * 1.005; // 지표 '바로 위'(항공망 1.014보다 아래) = 지표를 기는 기반 인프라
 // (×0.997은 지구 표면 안쪽이라 지구 켜면 불투명 구체에 가려져 안 보였음)
 const NODE_SIZE = 0.009; // 점은 작게 — 선(흐름)이 주인공
-const REST_SCALE = 0.18; // 흥분 전엔 거의 안 보이는 점
-const GROW_SCALE = 0.5; // 흥분해도 작은 점 유지(블롭 방지 → 흐름이 안 묻힘)
-const EASE = 0.12; // 크기·색을 목표치로 부드럽게 따라가게(점프 X)
+const REST_SCALE = 0.22; // 점 크기는 거의 고정(투명도로 세기 표현, 크기로 X)
+const GROW_SCALE = 0.18; // 흥분해도 크기는 거의 안 변함 — 대신 짙어짐
+const EASE = 0.12; // 색·투명도를 목표치로 부드럽게 따라가게(점프 X)
 
 /**
  * 그리드 파동 레이어 — 고정 격자 신경망('이미 깔린 위성 인프라') 위로
@@ -36,7 +36,7 @@ export function GridWaveLayer() {
 
     const segs = net.synapses.length;
     const pos = new Float32Array(segs * 6);
-    const col = new Float32Array(segs * 6);
+    const col = new Float32Array(segs * 8); // RGBA(정점당 4) — 알파=밀도(투명도)로 세기/가소성 표현
     for (let s = 0; s < segs; s++) {
       const e = net.synapses[s];
       const a = net.nodes[e.i];
@@ -46,10 +46,10 @@ export function GridWaveLayer() {
     }
     const lineGeom = new THREE.BufferGeometry();
     lineGeom.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    lineGeom.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    lineGeom.setAttribute("color", new THREE.BufferAttribute(col, 4)); // itemSize 4 → 정점 알파 사용
     const lineMat = new THREE.LineBasicMaterial({
       vertexColors: true, transparent: true,
-      blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.85,
+      blending: THREE.NormalBlending, depthWrite: false, // 더할수록 밝아짐(X) → 알파로 짙어짐(O)
     });
     return { net, sources, nodeMatrices, lineGeom, lineMat, vis };
   }, []);
@@ -117,13 +117,14 @@ export function GridWaveLayer() {
     const syn = net.synapses;
     for (let s = 0; s < syn.length; s++) {
       const e = syn[s];
-      // 흐름 = e.act(신호가 지금 이 연결을 지나감). 정적 글로우 빼고 흐름 위주 +
-      // 아주 옅은 인프라 바닥(0.07)만 깔아 망 윤곽은 유지 → 밝은 파동이 선을 타고 흐르는 게 보임
-      const t = Math.min(1, 0.07 + e.act * (0.8 + 0.4 * e.w));
-      const r = 0.5 * t, g = 0.18 * t, b = 0.95 * t;
-      const o = s * 6;
-      arr[o] = r; arr[o + 1] = g; arr[o + 2] = b;
-      arr[o + 3] = r; arr[o + 4] = g; arr[o + 5] = b;
+      // 색(보라 계열)은 고정 — 세기는 '투명도(알파=밀도)'로 표현. 크게가 아니라 짙게.
+      //  · 가소성: 학습된 강도 e.w가 클수록 평소에도 짙음(자주 쓰인 경로가 진하게 남음)
+      //  · 흐름:   신호가 지날 때(e.act) 확 짙어졌다가 식음
+      const plast = Math.min(1, e.w * 1.3);
+      const a = Math.min(1, 0.04 + plast * 0.4 + e.act * 0.7);
+      const o = s * 8;
+      arr[o] = 0.62; arr[o + 1] = 0.26; arr[o + 2] = 1.0; arr[o + 3] = a;
+      arr[o + 4] = 0.62; arr[o + 5] = 0.26; arr[o + 6] = 1.0; arr[o + 7] = a;
     }
     lineGeom.attributes.color.needsUpdate = true;
   });
