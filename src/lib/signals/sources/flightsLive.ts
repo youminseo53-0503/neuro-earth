@@ -15,7 +15,7 @@ function unit(lat: number, lon: number): [number, number, number] {
 }
 
 const LONG_THRESH = Math.cos(0.32); // 장거리(~18°+) 쌍만 노선
-const ROUTE_LIMIT = 900; // 노선 요청 상한(성능)
+const ROUTES_PER_AIRPORT = 5; // 공항당 장거리 연결 수(고르게)
 
 /**
  * 실시간 항공 유동인구 (OpenSky) + 장거리 노선(축삭).
@@ -58,10 +58,15 @@ export function createFlightsLiveSource(): SignalSource {
 
     pollRoutes(tick: number): RouteEvent[] {
       if (tick % 48 !== 0 || airports.length < 2) return [];
+      const n = airports.length;
       const u = airports.map((a) => unit(a.lat, a.lon));
       const out: RouteEvent[] = [];
-      for (let i = 0; i < airports.length; i++) {
-        for (let j = i + 1; j < airports.length; j++) {
+      // 공항마다 장거리 후보를 흩뿌려 골라 K개씩 연결 → 전 지구 고르게(동아시아 쏠림 X)
+      for (let i = 0; i < n; i++) {
+        let added = 0;
+        for (let s = 1; s < n && added < ROUTES_PER_AIRPORT; s++) {
+          const j = (i + s * 7) % n;
+          if (j === i) continue;
           const d = u[i][0] * u[j][0] + u[i][1] * u[j][1] + u[i][2] * u[j][2];
           if (d < LONG_THRESH) {
             out.push({
@@ -69,7 +74,7 @@ export function createFlightsLiveSource(): SignalSource {
               latB: airports[j].lat, lonB: airports[j].lon,
               weight: 0.4,
             });
-            if (out.length >= ROUTE_LIMIT) return out;
+            added++;
           }
         }
       }
