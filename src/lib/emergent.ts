@@ -94,6 +94,7 @@ export interface EConfig {
   softCap: number; // 밀도 의존 자기조절 목표(수용한계). 0=끔. N이 여기 가까우면 탄생률↓ → 하드캡 무관 ~softCap에서 출렁이며 유지
   softCapRamp: number; // >0이면 수용한계를 이 틱 동안 L자(느림→폭발)로 키움(문명사 성장곡선). 0=상수
   localCap: number; // >0이면 '지역(격자 셀)별' 수용한계 — 한 지역이 차도 빈 지역은 따로 자람(균등 성장). softCap 대신 사용.
+  areaCap: boolean; // localCap을 셀 면적(cos위도)으로 보정 — 극지방 과밀(격자 인공물) 방지
   spontaneous: number; // 내재 활동: 매 틱 노드가 스스로 발화 시도할 확률(0=순수 자극반응)
   hormoneProb: number; // 호르몬 분비 확률(0=끔)
   hormoneRelease: number; // 분비 시 mod 증가량
@@ -132,6 +133,7 @@ export const EMERGENT_DEFAULT: EConfig = {
   softCap: 0, // 기본 끔
   softCapRamp: 0, // 기본 상수(램프 없음)
   localCap: 0, // 기본 끔(글로벌 softCap 사용)
+  areaCap: false, // 기본 끔(평면 셀 한계)
   spontaneous: 0,
   hormoneProb: 0,
   hormoneRelease: 6, // 드물지만 크게 (무작위 이벤트)
@@ -179,6 +181,13 @@ export class EmergentNetwork {
     let lo = Math.floor((lon + 180) / 10) % GLON;
     if (lo < 0) lo += GLON;
     return la * GLON + lo;
+  }
+
+  /** 이 위도에서의 셀 수용한계 — areaCap이면 면적(cos위도)으로 보정(극지방 과밀 방지) */
+  private cellCapAt(lat: number): number {
+    return this.cfg.areaCap
+      ? this.cfg.localCap * Math.max(0.12, Math.cos(lat / DEG))
+      : this.cfg.localCap;
   }
 
   private ekey(i: number, j: number): number {
@@ -363,7 +372,7 @@ export class EmergentNetwork {
       // 밀도 의존 탄생률. localCap>0면 '그 셀'의 밀도로(지역 균등), 아니면 글로벌 (램프된) softCap.
       let reg: number;
       if (this.cfg.localCap > 0) {
-        reg = 1 - this.cellCount[this.cellOf(lat, lon)] / this.cfg.localCap;
+        reg = 1 - this.cellCount[this.cellOf(lat, lon)] / this.cellCapAt(lat);
       } else {
         const cap = this.effSoftCap();
         reg = cap > 0 ? 1 - this.aliveNodeIdx.length / cap : 1;
@@ -507,7 +516,7 @@ export class EmergentNetwork {
       if (ni.vitality < 0.45 || ni.deg >= maxDeg) continue;
       // 로컬 모드면 부모 셀 밀도로 게이트 → 빽빽한 지역은 더 안 낳음(균등)
       const gr = localMode
-        ? Math.max(0, 1 - this.cellCount[this.cellOf(ni.lat, ni.lon)] / this.cfg.localCap)
+        ? Math.max(0, 1 - this.cellCount[this.cellOf(ni.lat, ni.lon)] / this.cellCapAt(ni.lat))
         : globalGrowReg;
       if (this.rng() >= growthProb * gr * pace || this.freeNodes.length === 0) continue;
       const ox = ni.x + (this.rng() - 0.5) * growthOffset * 2;

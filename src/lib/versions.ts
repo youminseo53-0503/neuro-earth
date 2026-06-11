@@ -52,6 +52,8 @@ export interface VizConfig {
   localCap?: number;
   /** 수상돌기 성장 확률 직접 지정(부익부·셀 채우는 속도). 없으면 genesis류 0.05 */
   growthProb?: number;
+  /** 로컬 셀 한계를 면적(cos위도)으로 보정 — 극지방 과밀(격자 인공물) 방지 */
+  areaCap?: boolean;
   /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
   lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
@@ -264,7 +266,7 @@ export const VERSIONS: VizVersion[] = [
   {
     id: "s-civeven",
     n: 73,
-    label: "문명사 — 지역 균등 성장 (비행기=노드수 기준)",
+    label: "문명사 — 지역 균등 성장 (극지방 과밀 버그)",
     modes: {
       live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
       genesis: genCiv({
@@ -273,6 +275,23 @@ export const VERSIONS: VizVersion[] = [
         lifespan: 900,
         localCap: 22, // 지역(10°셀)별 한계 → 한 곳이 차도 빈 곳은 따로 자람(균등). 비행기=N≥4600
         softCapRamp: 3600, // 성장 '속도'를 L자로(밀도 게이트 아님) — 초반 느림→후반 전속, 균등 유지
+        maxNodes: 8000,
+      }),
+    },
+  },
+  {
+    id: "s-civarea",
+    n: 74,
+    label: "문명사 — 면적 보정 (극지방 과밀 해결)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 30, // 면적보정으로 줄어드는 만큼 한계 ↑(전체 ~6500, 하드캡 8000 여유)
+        areaCap: true, // 셀 한계 × cos(위도) → 극지방 과밀 방지
+        softCapRamp: 3600,
         maxNodes: 8000,
       }),
     },
