@@ -54,6 +54,8 @@ export interface VizConfig {
   growthProb?: number;
   /** 로컬 셀 한계를 면적(cos위도)으로 보정 — 극지방 과밀(격자 인공물) 방지 */
   areaCap?: boolean;
+  /** 팬데믹 — SIR 전염 파동(확산성 탈분극). 우한 시작, 노선 타고 번짐(빨강=감염/파랑=회복) */
+  pandemic?: boolean;
   /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
   lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
@@ -293,6 +295,33 @@ export const VERSIONS: VizVersion[] = [
         areaCap: true, // 셀 한계 × cos(위도) → 극지방 과밀 방지
         softCapRamp: 3600,
         maxNodes: 8000,
+      }),
+    },
+  },
+  {
+    id: "s-pandemic",
+    n: 75,
+    label: "팬데믹 — 전염 파동(확산성 탈분극) · 우한발 SIR",
+    modes: {
+      // 실시간 현재 세계 위에 SIR 파동 — 진짜 항공 노선 타고 번짐(빨강=감염/파랑=회복)
+      live: live({
+        mortal: true,
+        lifespan: 900,
+        softCap: 6500,
+        maxNodes: 8000,
+        pandemic: true,
+        gridWave: false, // 보라 그리드 끄고 전염 파동에 집중
+      }),
+      // 보너스: 문명사로 망이 깔린 뒤 그 위에 전염 파동
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 30,
+        areaCap: true,
+        softCapRamp: 3600,
+        maxNodes: 8000,
+        pandemic: true,
       }),
     },
   },

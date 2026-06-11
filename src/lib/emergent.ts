@@ -57,6 +57,8 @@ export interface ENode {
   born: number; // 태어난 tick (절대 수명 계산용)
   maxAge: number; // 절대 수명(0=불멸). 활동과 무관하게 이 나이 넘으면 죽음 → 턴오버
   immortal: boolean; // 우연히 태어난 불멸 노드 — 나이·비활성으로도 안 죽음(영속 앵커)
+  inf: number; // 팬데믹 SIR 상태: 0=취약(S) / 1=감염(I) / 2=회복(R)
+  infT: number; // 현 SIR 상태 경과 틱
 }
 
 export interface ESyn {
@@ -107,6 +109,10 @@ export interface EConfig {
   fatigueK: number; // 피로가 임계값을 올리는 정도
   homeoRate: number; // 항상성 시냅스 스케일링 속도(0=끔)
   homeoTarget: number; // 노드별 입력 |w| 합 목표
+  pandemic: boolean; // SIR 전염 파동(확산성 탈분극) 켜기
+  infectRate: number; // 감염 노드가 연결된 취약 노드를 감염시킬 확률/틱
+  recoverTicks: number; // 감염(I)→회복(R) 기간
+  immuneTicks: number; // 회복(R)→취약(S) 기간(면역 소실 → 재유행 가능)
   seed: number;
 }
 
@@ -146,6 +152,10 @@ export const EMERGENT_DEFAULT: EConfig = {
   fatigueK: 0.7,
   homeoRate: 0, // 기본 끔(버전에서 켬)
   homeoTarget: 2.2,
+  pandemic: false,
+  infectRate: 0.06, // I→S 감염 확률/틱(파동이 천천히 기어가게)
+  recoverTicks: 90, // 감염 기간
+  immuneTicks: 600, // 면역 기간(이후 재취약 → 재유행)
   seed: 20260611,
 };
 
@@ -210,7 +220,7 @@ export class EmergentNetwork {
     return {
       alive: false, x: 0, y: 0, z: 0, lat: 0, lon: 0, a: 0, inj: 0, vitality: 0,
       type: 1, threshold: 0.55, refrac: 0, fired: false, flash: 0, lastActive: 0, deg: 0,
-      mod: 0, fatigue: 0, born: 0, maxAge: 0, immortal: false,
+      mod: 0, fatigue: 0, born: 0, maxAge: 0, immortal: false, inf: 0, infT: 0,
     };
   }
 
@@ -247,6 +257,7 @@ export class EmergentNetwork {
     n.immortal = false;
     // 절대 수명 — 개체마다 다르게(0.6~1.4×) 흩어 한꺼번에 안 죽게(자연스러운 턴오버)
     n.maxAge = this.cfg.maxAge > 0 ? this.cfg.maxAge * (0.6 + this.rng() * 0.8) : 0;
+    n.inf = 0; n.infT = 0; // 새 노드는 취약(S)
     this.cellCount[this.cellOf(lat, lon)]++;
     this.bornCount++;
     return slot;
@@ -357,6 +368,16 @@ export class EmergentNetwork {
     if (this.cfg.localCap <= 0 || this.cfg.softCapRamp <= 0) return 1;
     const p = Math.min(1, this.tick / this.cfg.softCapRamp);
     return p * p;
+  }
+
+  /** 팬데믹 — (위도,경도) 근처 가장 가까운 노드를 '감염(I)'으로 씨앗(우한 발). */
+  seedInfection(lat: number, lon: number) {
+    const [x, y, z] = latLonToUnit(lat, lon);
+    const idx = this.nearest(x, y, z, Math.cos(0.5));
+    if (idx >= 0) {
+      this.nodes[idx].inf = 1;
+      this.nodes[idx].infT = 0;
+    }
   }
 
   /** (위도,경도)에 자극. 근처 노드가 있으면 활성, 없으면 새 노드 탄생. */
@@ -540,6 +561,32 @@ export class EmergentNetwork {
         this.killNode(idx);
         deaths++;
       }
+    }
+
+    // 6) 팬데믹 — SIR 전염 파동(확산성 탈분극). 노선(비행)을 타고 대륙으로 번지고 뒤에 회복 자국.
+    if (this.cfg.pandemic) {
+      const { infectRate, recoverTicks, immuneTicks } = this.cfg;
+      // 전파: alive 시냅스(노선 포함) 양 끝, 자리잡은 I(infT>0)가 연결된 S를 감염(같은 틱 연쇄 방지)
+      for (let s = 0; s < this.syns.length; s++) {
+        const e = this.syns[s];
+        if (!e.alive) continue;
+        const a = this.nodes[e.i];
+        const b = this.nodes[e.j];
+        if (a.inf === 1 && a.infT > 0 && b.inf === 0 && this.rng() < infectRate) { b.inf = 1; b.infT = 0; }
+        else if (b.inf === 1 && b.infT > 0 && a.inf === 0 && this.rng() < infectRate) { a.inf = 1; a.infT = 0; }
+      }
+      // 상태 전이 I→R→S
+      let infected = 0;
+      for (let k = 0; k < this.aliveNodeIdx.length; k++) {
+        const nd = this.nodes[this.aliveNodeIdx[k]];
+        if (nd.inf === 1) {
+          if (++nd.infT > recoverTicks) { nd.inf = 2; nd.infT = 0; } else infected++;
+        } else if (nd.inf === 2) {
+          if (++nd.infT > immuneTicks) { nd.inf = 0; nd.infT = 0; }
+        }
+      }
+      // 씨앗 — 감염자 0이면 우한에서 새 파동(변이)
+      if (infected === 0 && this.aliveNodeIdx.length > 20) this.seedInfection(30.6, 114.3);
     }
 
     this.tick++;

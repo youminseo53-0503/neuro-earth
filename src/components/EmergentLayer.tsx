@@ -53,6 +53,7 @@ export function EmergentLayer() {
     (config.homeo ? "o" : "") +
     (config.mortal ? "m" : "") +
     (config.civAnchors ? "C" : "") +
+    (config.pandemic ? "P" : "") +
     "|" + (config.maxNodes ?? 1200) +
     "/" + (config.softCap ?? 0) +
     "/" + (config.softCapRamp ?? 0) +
@@ -71,6 +72,7 @@ export function EmergentLayer() {
       softCapRamp: config.softCapRamp ?? 0, // L자 성장곡선(문명사)
       localCap: config.localCap ?? 0, // 지역(셀)별 수용한계 — 균등 성장(문명사)
       areaCap: config.areaCap ?? false, // 셀 한계를 면적(cos위도)으로 보정 — 극지방 과밀 방지
+      pandemic: config.pandemic ?? false, // SIR 전염 파동(확산성 탈분극)
       maxNodes: config.maxNodes ?? 1200, // 하드 슬롯 상한(안전망). 옛 버전 1200
       maxSyn: config.maxNodes ? Math.max(7000, config.maxNodes * 2) : 7000,
       // 창세(이상적)는 수상돌기 집중을 낮춰 거점들이 고르게 번지게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.
@@ -177,10 +179,17 @@ export function EmergentLayer() {
         continue;
       }
       const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
-      if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
-      else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
-      if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2));
-      if (n.immortal) color.setRGB(1.0, 0.9, 0.5); // 8대 문명 영속 앵커 — 황금빛
+      if (config.pandemic) {
+        // SIR — 감염(빨강) / 회복(파랑) / 취약(회색·약하게 활성)
+        if (n.inf === 1) color.setRGB(1.0, 0.13, 0.1);
+        else if (n.inf === 2) color.setRGB(0.13, 0.4, 0.9);
+        else color.setRGB(0.38 + act * 0.25, 0.4 + act * 0.25, 0.45 + act * 0.25);
+      } else {
+        if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
+        else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
+        if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2));
+        if (n.immortal) color.setRGB(1.0, 0.9, 0.5); // 8대 문명 영속 앵커 — 황금빛
+      }
       mesh.setColorAt(i, color);
       const lvi = Math.min(4, Math.floor(n.vitality / 0.32));
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
