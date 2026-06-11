@@ -95,8 +95,19 @@ export function createGenesisSource(seed = 4242): SignalSource {
 // ── 문명사(genesis-civ) — 인류 문명 성장곡선(L자/하키스틱) ──
 // 초기 인류(핵심 지역, 느림·평탄) → 기차·자동차(지역 확산) → 비행기(대륙간 아치)로 폭발.
 // 자기조절(softCap)과 합쳐져 ~1분에 천장. 슬로우-슬로우-폭발.
-const P1 = 2200; // 초기 인류 끝(핵심 지역만, 평탄) — ~37초@60fps
-const P2 = 3400; // 기차·자동차 끝(지역 확산) — ~57초, 이후 비행기 폭발
+const P1 = 2000; // 노선 등장 시작(기차·자동차) — 그 전엔 걸어다님(노선 없음)
+const P2 = 3000; // 비행기(대륙 간 아치 + 전 지구 글로벌) 시작
+const RAMP_T = 3600; // 성장곡선 램프(엔진 softCapRamp와 일치)
+const PEAK_SPAN = 3600; // 거점 융성 '피크 시점'이 퍼지는 범위(이른 index=고대 요람, 늦은 index=근대)
+const WIDTH = 650; // 각 문명 활동 반치폭(짧을수록 흥망성쇠 뚜렷)
+
+// 각 거점의 시점별 활동도 — 역사적 융성기를 중심으로 한 bump(+작은 baseline으로 완전 소멸 방지).
+// 시간이 지나며 활동 중심이 고대 요람 → 근대로 이동 → 먼저 뜬 문명이 영원히 압도하지 않음.
+function civActivity(i: number, n: number, tick: number): number {
+  const peak = (i / (n - 1)) * PEAK_SPAN;
+  const x = (tick - peak) / WIDTH;
+  return Math.exp(-x * x) + 0.04;
+}
 
 function uvec(lat: number, lon: number): [number, number, number] {
   const p = (90 - lat) / DEG;
@@ -142,7 +153,9 @@ export function createGenesisCivSource(seed = 4242): SignalSource {
     return { lat: lat + dLat, lon: lon + dLon, strength };
   }
 
-  const ANCHOR_EVERY = Math.floor(P1 / (CIV_ANCHORS.length + 1)); // 8대 문명 phase1 동안 역사순 등장
+  const ANCHOR_EVERY = Math.floor(2200 / (CIV_ANCHORS.length + 1)); // 8대 문명 역사순 등장
+  const NC = CORES.length;
+  const act = new Array(NC).fill(0); // 거점별 활동도(재사용)
 
   return {
     id: "genesisciv",
@@ -158,27 +171,26 @@ export function createGenesisCivSource(seed = 4242): SignalSource {
     },
     poll(tick: number): StimulusEvent[] {
       const out: StimulusEvent[] = [];
-      if (tick < P1) {
-        // 초기 인류 — 드러난 문명 핵심에서만, 작은 반경. 거점이 차면 더는 안 늘어 평탄(L자 바닥).
-        const revealed = Math.max(1, Math.min(CIV_ANCHORS.length, Math.floor(tick / ANCHOR_EVERY)));
-        for (let k = 0; k < 2; k++) {
-          const a = CIV_ANCHORS[Math.floor(rng() * revealed)];
-          out.push(jitter(a.lat, a.lon, 4, 0.5));
-        }
-      } else if (tick < P2) {
-        // 기차·자동차 — 거점으로 지역 확산(반경·점수 증가)
-        const t = (tick - P1) / (P2 - P1);
-        const nPts = 3 + Math.floor(t * 7);
-        const reach = 6 + t * 7;
-        for (let k = 0; k < nPts; k++) {
-          const c = CORES[Math.floor(rng() * CORES.length)];
-          out.push(jitter(c[0], c[1], reach, 0.55));
-        }
-      } else {
-        // 비행기 — 전 지구 폭발
-        for (let k = 0; k < 18; k++) {
-          const c = rng() < 0.6 ? FIB[Math.floor(rng() * FIB.length)] : CORES[Math.floor(rng() * CORES.length)];
-          out.push(jitter(c[0], c[1], 14, 0.6));
+      const progress = Math.min(1, tick / RAMP_T);
+      const nPts = 4 + Math.floor(progress * 16); // 초기 적게(느림) → 후기 많이(폭발)
+      // 거점 활동도(역사적 융성 bump) — 활동 중심이 시간 따라 이동
+      let total = 0;
+      for (let i = 0; i < NC; i++) {
+        act[i] = civActivity(i, NC, tick);
+        total += act[i];
+      }
+      const reach = 3 + progress * 7;
+      for (let k = 0; k < nPts; k++) {
+        if (tick > P2 && rng() < 0.4) {
+          // 비행기 시대 — 전 지구 글로벌 fill(연결된 근대 세계)
+          const c = FIB[Math.floor(rng() * FIB.length)];
+          out.push(jitter(c[0], c[1], 13, 0.55));
+        } else {
+          // 활동도 가중 샘플 — 융성 중인 문명에 자극이 몰림(옛 문명은 자극 끊겨 쇠퇴)
+          let r = rng() * total;
+          let i = 0;
+          while (i < NC - 1 && (r -= act[i]) > 0) i++;
+          out.push(jitter(CORES[i][0], CORES[i][1], reach, 0.55));
         }
       }
       return out;
