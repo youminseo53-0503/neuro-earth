@@ -16,15 +16,15 @@ export interface VizConfig {
   showEarth: boolean;
   /** 신경망 표시 */
   showNet: boolean;
-  /** 연결선 밝기 기준: weight=정적 가중치(줄전구) / act=신호 흐름 */
+  /** (grid 엔진 전용) 연결선 밝기 기준: weight=정적 가중치(줄전구) / act=신호 흐름. emergent는 안 읽음 */
   colorMode: "weight" | "act";
-  /** 노드 무작위 지터(도) */
+  /** (grid 엔진 전용) 노드 무작위 지터(도). emergent는 안 읽음 */
   jitter: number;
   /** 활성 신호 소스 */
   sources: SourceId[];
-  /** 신호 세기 배율 (버전별 발광 강도 조절). 기본 1 */
+  /** (grid 엔진 전용) 신호 세기 배율. emergent는 안 읽음 */
   gain?: number;
-  /** 노드 크기를 vitality(누적 활동)로 키울지. 끄면 고정 크기(옛 버전 원본) */
+  /** (grid 엔진 전용) 노드 크기를 vitality로 키울지. emergent는 항상 vitality 기반이라 안 읽음 */
   grow?: boolean;
   /** 렌더 엔진: grid=고정격자(기존) / emergent=노드가 데이터에서 생멸 */
   engine?: "grid" | "emergent";

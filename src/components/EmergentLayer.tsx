@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { EmergentNetwork, type ENode } from "@/lib/emergent";
+import { EmergentNetwork, type ENode, type ESyn, type EConfig } from "@/lib/emergent";
+import type { VizConfig } from "@/lib/versions";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
@@ -35,6 +36,182 @@ function slerp(a: ENode, b: ENode, t: number): [number, number, number] {
 }
 
 /**
+ * VizConfig → EmergentNetwork 생성자 옵션(EConfig 부분집합).
+ * sig 캐시키도 이 결과에서 파생한다 → 생성자 인자와 캐시키가 단일 소스라 구조적으로 못 어긋남
+ * (옛날엔 둘을 손으로 따로 나열 → 빠뜨리면 '버전 바꿔도 옛 망이 살아남는' 침묵 회귀 위험).
+ */
+function buildNetOpts(config: VizConfig): Partial<EConfig> {
+  const opts: Partial<EConfig> = {
+    spontaneous: config.intrinsic ? 0.01 : 0,
+    hormoneProb: config.hormone ? 0.006 : 0,
+    fatigueGain: config.fatigue ? 0.18 : 0,
+    homeoRate: config.homeo ? 0.03 : 0,
+    maxAge: config.lifespan ?? (config.mortal ? 1500 : 0), // 절대 수명(틱) — 나이 들면 죽어 턴오버
+    softCap: config.softCap ?? 0, // 밀도 의존 자기조절
+    softCapRamp: config.softCapRamp ?? 0, // L자 성장곡선(문명사)
+    localCap: config.localCap ?? 0, // 지역(셀)별 수용한계 — 균등 성장
+    areaCap: config.areaCap ?? false, // 셀 한계를 면적(cos위도)으로 보정 — 극지방 과밀 방지
+    pandemic: config.pandemic ?? false, // SIR 전염 파동(확산성 탈분극)
+    maxNodes: config.maxNodes ?? 1200, // 하드 슬롯 상한(안전망). 옛 버전 1200
+    maxSyn: config.maxNodes ? Math.max(7000, config.maxNodes * 2) : 7000,
+  };
+  // 창세(이상적)는 수상돌기 집중을 낮춰 거점들이 고르게 번지게. 실시간은 그대로.
+  // 명시값 > genesis류 기본 0.05 > (없음 → 엔진 기본값)
+  const gp = config.growthProb ?? (config.sources.includes("genesis") ? 0.05 : undefined);
+  if (gp !== undefined) opts.growthProb = gp;
+  return opts;
+}
+
+/** 노드 패스 — 이산 크기 레벨 + 색(흥분/억제 + 문화 황금빛, 팬데믹이면 SIR 색). */
+function drawNodes(
+  mesh: THREE.InstancedMesh,
+  nodes: ENode[],
+  config: VizConfig,
+  NODE_LV: number[],
+  color: THREE.Color,
+  dummy: THREE.Object3D,
+) {
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (!n.alive) {
+      dummy.scale.setScalar(0);
+      dummy.position.set(0, 0, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      continue;
+    }
+    const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
+    if (config.pandemic) {
+      // SIR — 감염(빨강) / 회복(파랑) / 취약(회색·약하게 활성)
+      if (n.inf === 1) color.setRGB(1.0, 0.13, 0.1);
+      else if (n.inf === 2) color.setRGB(0.13, 0.4, 0.9);
+      else color.setRGB(0.38 + act * 0.25, 0.4 + act * 0.25, 0.45 + act * 0.25);
+    } else {
+      if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
+      else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
+      if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2));
+      if (n.immortal) color.setRGB(1.0, 0.9, 0.5); // 8대 문명 영속 앵커 — 황금빛
+    }
+    mesh.setColorAt(i, color);
+    const lvi = Math.min(4, Math.floor(n.vitality / 0.32));
+    dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
+    dummy.scale.setScalar(n.immortal ? NODE_LV[4] * 1.4 : NODE_LV[lvi]);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+
+/** 시냅스 패스 — 굵기=사용량(use)인 실린더(로컬 연결, 노선 제외). prevSyn으로 줄어든 만큼 숨김. */
+function drawSynapses(
+  sm: THREE.InstancedMesh,
+  syns: ESyn[],
+  nodes: ENode[],
+  prevSyn: { current: number },
+  color: THREE.Color,
+  dummy: THREE.Object3D,
+  dir: THREE.Vector3,
+) {
+  let c = 0;
+  for (let s = 0; s < syns.length; s++) {
+    const e = syns[s];
+    if (!e.alive || e.route) continue;
+    const a = nodes[e.i];
+    const b = nodes[e.j];
+    if (!a.alive || !b.alive) continue;
+    const ax = a.x * SURF, ay = a.y * SURF, az = a.z * SURF;
+    const bx = b.x * SURF, by = b.y * SURF, bz = b.z * SURF;
+    dir.set(bx - ax, by - ay, bz - az);
+    const len = dir.length();
+    if (len < 1e-5) continue;
+    dir.divideScalar(len);
+    const th = THICK_BASE * (0.18 + Math.min(e.use, 5) * 0.42);
+    dummy.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    dummy.quaternion.setFromUnitVectors(UP, dir);
+    dummy.scale.set(th, len, th);
+    dummy.updateMatrix();
+    sm.setMatrixAt(c, dummy.matrix);
+    const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35);
+    if (e.sign > 0) color.setRGB(0.12 * t, 0.85 * t, 0.65 * t);
+    else color.setRGB(0.85 * t, 0.2 * t, 0.35 * t);
+    sm.setColorAt(c, color);
+    c++;
+  }
+  // 줄어든 만큼 숨김
+  if (prevSyn.current > c) {
+    dummy.scale.setScalar(0);
+    dummy.position.set(0, 0, 0);
+    dummy.updateMatrix();
+    for (let k = c; k < prevSyn.current; k++) sm.setMatrixAt(k, dummy.matrix);
+  }
+  prevSyn.current = c;
+  sm.instanceMatrix.needsUpdate = true;
+  if (sm.instanceColor) sm.instanceColor.needsUpdate = true;
+}
+
+/** 노선(축삭) 패스 — 지구 켜면 아크, 끄면 내부 직선. 두 분기가 같은 세그먼트 푸시(pushSeg)를 공유. */
+function drawRoutes(
+  syns: ESyn[],
+  nodes: ENode[],
+  geom: THREE.BufferGeometry,
+  rPos: Float32Array,
+  rCol: Float32Array,
+  config: VizConfig,
+  earthShown: boolean,
+) {
+  let rc = 0;
+  const maxSeg = ROUTE_CAP * (ARC_SEG - 1);
+  const pushSeg = (
+    x0: number, y0: number, z0: number,
+    x1: number, y1: number, z1: number,
+    r: number, g: number, b: number,
+  ) => {
+    const o = rc * 6;
+    rPos[o] = x0; rPos[o + 1] = y0; rPos[o + 2] = z0;
+    rPos[o + 3] = x1; rPos[o + 4] = y1; rPos[o + 5] = z1;
+    rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = b;
+    rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = b;
+    rc++;
+  };
+  for (let s = 0; s < syns.length && rc < maxSeg; s++) {
+    const e = syns[s];
+    if (!e.alive || !e.route) continue;
+    const a = nodes[e.i];
+    const b = nodes[e.j];
+    if (!a.alive || !b.alive) continue;
+    // 아치 높이 = 두 점 사이 대권 각도에 비례(단거리 평탄·장거리 웅장)
+    let bdot = a.x * b.x + a.y * b.y + a.z * b.z;
+    bdot = Math.max(-1, Math.min(1, bdot));
+    const bulge = BULGE_MIN + BULGE_SPAN * (Math.acos(bdot) / Math.PI);
+    const tc = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
+    const r = 0.3 * tc, g = 0.8 * tc, bl = 1.0 * tc;
+    // 점진적 연결: grow(0→1)까지만 그림 — 출발(i)에서 도착(j)으로 아치가 그어짐
+    const lastK = config.routeGrow ? Math.max(1, Math.round(e.grow * (ARC_SEG - 1))) : ARC_SEG - 1;
+    if (earthShown) {
+      let px = 0, py = 0, pz = 0;
+      for (let k = 0; k <= lastK; k++) {
+        const tt = k / (ARC_SEG - 1);
+        const [ux, uy, uz] = slerp(a, b, tt);
+        const m = Math.hypot(ux, uy, uz) || 1;
+        const rad = SURF * (1 + bulge * Math.sin(Math.PI * tt));
+        const x = (ux / m) * rad, y = (uy / m) * rad, z = (uz / m) * rad;
+        if (k > 0 && rc < maxSeg) pushSeg(px, py, pz, x, y, z, r, g, bl);
+        px = x; py = y; pz = z;
+      }
+    } else if (rc < maxSeg) {
+      // 지구 끄면 내부 직선 — grow까지만 뻗음
+      const gp = config.routeGrow ? e.grow : 1;
+      const ex = a.x + (b.x - a.x) * gp, ey = a.y + (b.y - a.y) * gp, ez = a.z + (b.z - a.z) * gp;
+      pushSeg(a.x * SURF, a.y * SURF, a.z * SURF, ex * SURF, ey * SURF, ez * SURF, r, g, bl);
+    }
+  }
+  geom.setDrawRange(0, rc * 2);
+  geom.attributes.position.needsUpdate = true;
+  geom.attributes.color.needsUpdate = true;
+}
+
+/**
  * Emergent 렌더러 — 노드(5단 이산 크기) + 시냅스(굵기=사용량, 실린더) + 노선(아크/내부직선).
  */
 export function EmergentLayer() {
@@ -45,43 +222,14 @@ export function EmergentLayer() {
   // 노드 크기는 버전 속성 — 옛 버전은 큰 공 그대로, 'smallNodes' 버전부터 작은 공
   const NODE_LV = config.smallNodes ? NODE_LV_SMALL : NODE_LV_BIG;
 
+  const netOpts = buildNetOpts(config);
+  // sig = 소스 + 생성자 인자(netOpts 단일 소스에서 JSON으로 파생) + civAnchors.
+  // civAnchors는 생성자 인자가 아니라 매 프레임 읽지만(앵커 심기), 단계 전환 시엔 망을 새로
+  // 시작해야 8대 문명이 처음부터 심긴다 → 리빌드 트리거로만 따로 덧붙인다(미러 위험 없음).
   const sig =
-    config.sources.join(",") +
-    "|" + (config.intrinsic ? "i" : "") +
-    (config.hormone ? "h" : "") +
-    (config.fatigue ? "f" : "") +
-    (config.homeo ? "o" : "") +
-    (config.mortal ? "m" : "") +
-    (config.civAnchors ? "C" : "") +
-    (config.pandemic ? "P" : "") +
-    "|" + (config.maxNodes ?? 1200) +
-    "/" + (config.softCap ?? 0) +
-    "/" + (config.softCapRamp ?? 0) +
-    "/" + (config.localCap ?? 0) +
-    (config.areaCap ? "A" : "") +
-    "/" + (config.growthProb ?? -1) +
-    "/" + (config.lifespan ?? 0);
+    config.sources.join(",") + "|" + JSON.stringify(netOpts) + "|" + (config.civAnchors ? "C" : "");
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
-    const net = new EmergentNetwork({
-      spontaneous: config.intrinsic ? 0.01 : 0,
-      hormoneProb: config.hormone ? 0.006 : 0,
-      fatigueGain: config.fatigue ? 0.18 : 0,
-      homeoRate: config.homeo ? 0.03 : 0,
-      maxAge: config.lifespan ?? (config.mortal ? 1500 : 0), // 절대 수명(틱) — 나이 들면 죽어 턴오버
-      softCap: config.softCap ?? 0, // 밀도 의존 자기조절(천장 무관 ~softCap 유지)
-      softCapRamp: config.softCapRamp ?? 0, // L자 성장곡선(문명사)
-      localCap: config.localCap ?? 0, // 지역(셀)별 수용한계 — 균등 성장(문명사)
-      areaCap: config.areaCap ?? false, // 셀 한계를 면적(cos위도)으로 보정 — 극지방 과밀 방지
-      pandemic: config.pandemic ?? false, // SIR 전염 파동(확산성 탈분극)
-      maxNodes: config.maxNodes ?? 1200, // 하드 슬롯 상한(안전망). 옛 버전 1200
-      maxSyn: config.maxNodes ? Math.max(7000, config.maxNodes * 2) : 7000,
-      // 창세(이상적)는 수상돌기 집중을 낮춰 거점들이 고르게 번지게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.
-      ...(config.growthProb !== undefined
-        ? { growthProb: config.growthProb }
-        : config.sources.includes("genesis")
-          ? { growthProb: 0.05 }
-          : {}),
-    });
+    const net = new EmergentNetwork(netOpts);
     const sources = makeSources(config.sources);
 
     const synGeo = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
@@ -165,128 +313,12 @@ export function EmergentLayer() {
       }
     }
     net.step();
-    const nodes = net.nodes;
-    const syns = net.syns;
 
-    // 노드 — 이산 크기 레벨 + 색(흥분/억제 + 문화 황금빛)
-    for (let i = 0; i < nodes.length; i++) {
-      const n = nodes[i];
-      if (!n.alive) {
-        dummy.scale.setScalar(0);
-        dummy.position.set(0, 0, 0);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
-        continue;
-      }
-      const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
-      if (config.pandemic) {
-        // SIR — 감염(빨강) / 회복(파랑) / 취약(회색·약하게 활성)
-        if (n.inf === 1) color.setRGB(1.0, 0.13, 0.1);
-        else if (n.inf === 2) color.setRGB(0.13, 0.4, 0.9);
-        else color.setRGB(0.38 + act * 0.25, 0.4 + act * 0.25, 0.45 + act * 0.25);
-      } else {
-        if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
-        else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
-        if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2));
-        if (n.immortal) color.setRGB(1.0, 0.9, 0.5); // 8대 문명 영속 앵커 — 황금빛
-      }
-      mesh.setColorAt(i, color);
-      const lvi = Math.min(4, Math.floor(n.vitality / 0.32));
-      dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
-      dummy.scale.setScalar(n.immortal ? NODE_LV[4] * 1.4 : NODE_LV[lvi]);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-
-    // 시냅스 — 굵기=사용량(use)인 실린더 (로컬 연결, 노선 제외)
-    let c = 0;
-    for (let s = 0; s < syns.length; s++) {
-      const e = syns[s];
-      if (!e.alive || e.route) continue;
-      const a = nodes[e.i];
-      const b = nodes[e.j];
-      if (!a.alive || !b.alive) continue;
-      const ax = a.x * SURF, ay = a.y * SURF, az = a.z * SURF;
-      const bx = b.x * SURF, by = b.y * SURF, bz = b.z * SURF;
-      dir.set(bx - ax, by - ay, bz - az);
-      const len = dir.length();
-      if (len < 1e-5) continue;
-      dir.divideScalar(len);
-      const th = THICK_BASE * (0.18 + Math.min(e.use, 5) * 0.42);
-      dummy.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
-      dummy.quaternion.setFromUnitVectors(UP, dir);
-      dummy.scale.set(th, len, th);
-      dummy.updateMatrix();
-      sm.setMatrixAt(c, dummy.matrix);
-      const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35);
-      if (e.sign > 0) color.setRGB(0.12 * t, 0.85 * t, 0.65 * t);
-      else color.setRGB(0.85 * t, 0.2 * t, 0.35 * t);
-      sm.setColorAt(c, color);
-      c++;
-    }
-    // 줄어든 만큼 숨김
-    if (prevSyn.current > c) {
-      dummy.scale.setScalar(0);
-      dummy.position.set(0, 0, 0);
-      dummy.updateMatrix();
-      for (let k = c; k < prevSyn.current; k++) sm.setMatrixAt(k, dummy.matrix);
-    }
-    prevSyn.current = c;
-    sm.instanceMatrix.needsUpdate = true;
-    if (sm.instanceColor) sm.instanceColor.needsUpdate = true;
-
-    // 노선(축삭) — 지구 켜면 아크, 끄면 내부 직선
-    let rc = 0;
-    const maxSeg = ROUTE_CAP * (ARC_SEG - 1);
-    for (let s = 0; s < syns.length && rc < maxSeg; s++) {
-      const e = syns[s];
-      if (!e.alive || !e.route) continue;
-      const a = nodes[e.i];
-      const b = nodes[e.j];
-      if (!a.alive || !b.alive) continue;
-      // 아치 높이 = 두 점 사이 대권 각도에 비례(단거리 평탄·장거리 웅장)
-      let bdot = a.x * b.x + a.y * b.y + a.z * b.z;
-      bdot = Math.max(-1, Math.min(1, bdot));
-      const bulge = BULGE_MIN + BULGE_SPAN * (Math.acos(bdot) / Math.PI);
-      const tc = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
-      const r = 0.3 * tc, g = 0.8 * tc, bl = 1.0 * tc;
-      // 점진적 연결: grow(0→1)까지만 그림 — 출발(i)에서 도착(j)으로 아치가 그어짐
-      const lastK = config.routeGrow ? Math.max(1, Math.round(e.grow * (ARC_SEG - 1))) : ARC_SEG - 1;
-      if (earthShown) {
-        let px = 0, py = 0, pz = 0;
-        for (let k = 0; k <= lastK; k++) {
-          const tt = k / (ARC_SEG - 1);
-          const [ux, uy, uz] = slerp(a, b, tt);
-          const m = Math.hypot(ux, uy, uz) || 1;
-          const rad = SURF * (1 + bulge * Math.sin(Math.PI * tt));
-          const x = (ux / m) * rad, y = (uy / m) * rad, z = (uz / m) * rad;
-          if (k > 0 && rc < maxSeg) {
-            const o = rc * 6;
-            rPos[o] = px; rPos[o + 1] = py; rPos[o + 2] = pz;
-            rPos[o + 3] = x; rPos[o + 4] = y; rPos[o + 5] = z;
-            rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = bl;
-            rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = bl;
-            rc++;
-          }
-          px = x; py = y; pz = z;
-        }
-      } else if (rc < maxSeg) {
-        // 지구 끄면 내부 직선 — grow까지만 뻗음
-        const gp = config.routeGrow ? e.grow : 1;
-        const ex = a.x + (b.x - a.x) * gp, ey = a.y + (b.y - a.y) * gp, ez = a.z + (b.z - a.z) * gp;
-        const o = rc * 6;
-        rPos[o] = a.x * SURF; rPos[o + 1] = a.y * SURF; rPos[o + 2] = a.z * SURF;
-        rPos[o + 3] = ex * SURF; rPos[o + 4] = ey * SURF; rPos[o + 5] = ez * SURF;
-        rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = bl;
-        rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = bl;
-        rc++;
-      }
-    }
-    routeGeom.setDrawRange(0, rc * 2);
-    routeGeom.attributes.position.needsUpdate = true;
-    routeGeom.attributes.color.needsUpdate = true;
+    // 세 패스(노드·시냅스·노선)는 순수 헬퍼로 분리 — useFrame은 폴링→step→그리기만.
+    // 공유 스크래치(color/dummy/dir)와 prevSyn ref를 넘겨 프레임당 할당 0 유지.
+    drawNodes(mesh, net.nodes, config, NODE_LV, color, dummy);
+    drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir);
+    drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown);
 
     if (frameRef.current++ % 12 === 0) setE(net.metrics);
   });

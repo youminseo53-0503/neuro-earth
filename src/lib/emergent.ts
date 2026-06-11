@@ -403,16 +403,40 @@ export class EmergentNetwork {
     }
   }
 
+  // 한 틱 = 아래 단계들을 정해진 순서로(각 단계는 동작 보존 순수 추출).
+  // 호출 순서·공유버퍼(input·fired·aliveNodeIdx)·rng 소비 순서는 절대 바꾸지 말 것 —
+  // 1틱이라도 어긋나면 같은 seed라도 망이 달라져 옛 버전 재현이 깨진다.
   step() {
-    const { decay, ltp, ltd, prune, minW, refractoryTicks, nodeLifespan, connectRadius, connectProb, growthProb, growthOffset, maxDeg, spontaneous, hormoneProb, hormoneRelease, hormoneDecay, diffuseRate, routeDiffuse, modDrive, fatigueGain, fatigueRecover, fatigueK, homeoRate, homeoTarget } = this.cfg;
-
-    // 살아있는 노드 목록 갱신
+    // 살아있는 노드 목록 갱신(이 틱 내내 쓰는 스냅샷)
     this.aliveNodeIdx.length = 0;
     for (let i = 0; i < this.nodes.length; i++) if (this.nodes[i].alive) this.aliveNodeIdx.push(i);
-    if (homeoRate > 0) this.inSum.fill(0);
+    if (this.cfg.homeoRate > 0) this.inSum.fill(0);
 
-    // 1) 시냅스 입력 누적 + 전역 약화/사멸
     const input = new Map<number, number>();
+    this.synapseInput(input);                       // 1) 시냅스 입력·약화/사멸·호르몬 확산
+    this.homeostasis();                             // 항상성(시냅스 스케일링)
+    const fired: number[] = [];
+    const firing = this.updateNodes(input, fired);  // 2) 노드 갱신·발화/불응·활력
+    this.releaseHormone();                          // 호르몬(문화) 분비
+    this.hebbian();                                 // 3) 헤브 가소성
+    this.synaptogenesis(fired);                     // 4) 시냅토제네시스
+    this.dendriticGrowth(fired);                    // 4b) 수상돌기 성장
+    const deaths = this.reaping();                  // 5) 죽음(비활성·수명)
+    if (this.cfg.pandemic) this.pandemicStep();     // 6) SIR 전염 파동
+
+    this.tick++;
+    let nodeCount = 0, synCount = 0, modSum = 0;
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (this.nodes[i].alive) { nodeCount++; modSum += this.nodes[i].mod; }
+    }
+    for (let s = 0; s < this.syns.length; s++) if (this.syns[s].alive) synCount++;
+    this.metrics = { tick: this.tick, nodes: nodeCount, synapses: synCount, firing, births: this.bornCount, deaths, hormone: modSum };
+    this.bornCount = 0;
+  }
+
+  /** 1) 시냅스 입력 누적 + 전역 약화/사멸 + 문화(호르몬) 비보존 전파 */
+  private synapseInput(input: Map<number, number>) {
+    const { prune, minW, diffuseRate, routeDiffuse, homeoRate } = this.cfg;
     for (let s = 0; s < this.syns.length; s++) {
       const e = this.syns[s];
       if (!e.alive) continue;
@@ -439,25 +463,29 @@ export class EmergentNetwork {
       e.w *= 1 - prune;
       if (e.w < minW) this.killSyn(s);
     }
+  }
 
-    // 항상성(시냅스 스케일링) — 노드별 입력 총량을 목표로 천천히 정규화(폭주·포화 방지)
-    if (homeoRate > 0) {
-      for (let s = 0; s < this.syns.length; s++) {
-        const e = this.syns[s];
-        if (!e.alive) continue;
-        const sum = this.inSum[e.j];
-        if (sum > 0.01) {
-          let f = homeoTarget / sum;
-          if (f > 2) f = 2;
-          else if (f < 0.5) f = 0.5;
-          e.w *= 1 - homeoRate + homeoRate * f;
-        }
+  /** 항상성(시냅스 스케일링) — 노드별 입력 총량을 목표로 천천히 정규화(폭주·포화 방지) */
+  private homeostasis() {
+    const { homeoRate, homeoTarget } = this.cfg;
+    if (homeoRate <= 0) return;
+    for (let s = 0; s < this.syns.length; s++) {
+      const e = this.syns[s];
+      if (!e.alive) continue;
+      const sum = this.inSum[e.j];
+      if (sum > 0.01) {
+        let f = homeoTarget / sum;
+        if (f > 2) f = 2;
+        else if (f < 0.5) f = 0.5;
+        e.w *= 1 - homeoRate + homeoRate * f;
       }
     }
+  }
 
-    // 2) 노드 갱신 + 발화/불응 + 활력
+  /** 2) 노드 갱신 + 발화/불응 + 활력. fired에 발화 노드 인덱스를 채우고 발화 수를 반환 */
+  private updateNodes(input: Map<number, number>, fired: number[]): number {
+    const { decay, refractoryTicks, spontaneous, hormoneDecay, modDrive, fatigueRecover, fatigueK, fatigueGain } = this.cfg;
     let firing = 0;
-    const firedThisStep: number[] = [];
     for (let k = 0; k < this.aliveNodeIdx.length; k++) {
       const idx = this.aliveNodeIdx[k];
       const nd = this.nodes[idx];
@@ -491,7 +519,7 @@ export class EmergentNetwork {
         nd.vitality = Math.min(1.6, nd.vitality + 0.18);
         nd.fatigue += fatigueGain;
         firing++;
-        firedThisStep.push(idx);
+        fired.push(idx);
       } else {
         nd.fired = false;
         nd.a = a > 1.5 ? 1.5 : a;
@@ -499,15 +527,22 @@ export class EmergentNetwork {
         nd.vitality *= 0.99;
       }
     }
+    return firing;
+  }
 
-    // 호르몬(문화) 분비 — 어디서든 무작위로 한 노드에서 release(특정 위치 편향 X).
-    // 확산은 시냅스 루프가 처리 → 노선 타고 멀리 번짐.
+  /** 호르몬(문화) 분비 — 어디서든 무작위로 한 노드에서 release(특정 위치 편향 X).
+   *  확산은 synapseInput이 처리 → 노선 타고 멀리 번짐. */
+  private releaseHormone() {
+    const { hormoneProb, hormoneRelease } = this.cfg;
     if (hormoneProb > 0 && this.rng() < hormoneProb && this.aliveNodeIdx.length > 0) {
       const origin = this.aliveNodeIdx[Math.floor(this.rng() * this.aliveNodeIdx.length)];
       this.nodes[origin].mod += hormoneRelease;
     }
+  }
 
-    // 3) 헤브 가소성
+  /** 3) 헤브 가소성 — 함께 발화한 쌍 강화(LTP), 한쪽만 발화하면 약화(LTD) */
+  private hebbian() {
+    const { ltp, ltd } = this.cfg;
     for (let s = 0; s < this.syns.length; s++) {
       const e = this.syns[s];
       if (!e.alive || !this.nodes[e.i].fired) continue;
@@ -515,24 +550,30 @@ export class EmergentNetwork {
       else e.w -= ltd * e.w;
       if (e.w < 0) e.w = 0;
     }
+  }
 
-    // 4) 시냅토제네시스 — 발화 노드가 가까운 발화/활성 노드로 연결
+  /** 4) 시냅토제네시스 — 발화 노드가 가까운 발화/활성 노드로 연결 */
+  private synaptogenesis(fired: number[]) {
+    const { connectRadius, connectProb, maxDeg } = this.cfg;
     const cosC = Math.cos(connectRadius);
-    for (let f = 0; f < firedThisStep.length; f++) {
-      const i = firedThisStep[f];
+    for (let f = 0; f < fired.length; f++) {
+      const i = fired[f];
       const ni = this.nodes[i];
       if (ni.deg >= maxDeg || this.rng() >= connectProb) continue;
       const j = this.nearest(ni.x, ni.y, ni.z, cosC, i);
       if (j >= 0 && this.nodes[j].deg < maxDeg && !this.hasEdge(i, j)) this.connect(i, j);
     }
+  }
 
-    // 4b) 수상돌기 성장 — 허브(고활력)가 가까이에 자식 노드를 낳음 (밀도 의존 자기조절)
+  /** 4b) 수상돌기 성장 — 허브(고활력)가 가까이에 자식 노드를 낳음(밀도 의존 자기조절) */
+  private dendriticGrowth(fired: number[]) {
+    const { growthProb, growthOffset, maxDeg } = this.cfg;
     const localMode = this.cfg.localCap > 0;
     const gcap = this.effSoftCap();
     const globalGrowReg = gcap > 0 ? Math.max(0, 1 - this.aliveNodeIdx.length / gcap) : 1;
     const pace = this.birthPace();
-    for (let f = 0; f < firedThisStep.length; f++) {
-      const i = firedThisStep[f];
+    for (let f = 0; f < fired.length; f++) {
+      const i = fired[f];
       const ni = this.nodes[i];
       if (ni.vitality < 0.45 || ni.deg >= maxDeg) continue;
       // 로컬 모드면 부모 셀 밀도로 게이트 → 빽빽한 지역은 더 안 낳음(균등)
@@ -548,8 +589,11 @@ export class EmergentNetwork {
       const child = this.birth(clat, clon, 0.7);
       if (child >= 0) this.connect(i, child);
     }
+  }
 
-    // 5) 죽음 — (a) 오래 비활성, 또는 (b) 절대 수명 초과(활동과 무관·턴오버)
+  /** 5) 죽음 — (a) 오래 비활성, 또는 (b) 절대 수명 초과(활동과 무관·턴오버). 죽은 수 반환 */
+  private reaping(): number {
+    const { nodeLifespan } = this.cfg;
     let deaths = 0;
     for (let k = 0; k < this.aliveNodeIdx.length; k++) {
       const idx = this.aliveNodeIdx[k];
@@ -562,40 +606,32 @@ export class EmergentNetwork {
         deaths++;
       }
     }
+    return deaths;
+  }
 
-    // 6) 팬데믹 — SIR 전염 파동(확산성 탈분극). 노선(비행)을 타고 대륙으로 번지고 뒤에 회복 자국.
-    if (this.cfg.pandemic) {
-      const { infectRate, recoverTicks, immuneTicks } = this.cfg;
-      // 전파: alive 시냅스(노선 포함) 양 끝, 자리잡은 I(infT>0)가 연결된 S를 감염(같은 틱 연쇄 방지)
-      for (let s = 0; s < this.syns.length; s++) {
-        const e = this.syns[s];
-        if (!e.alive) continue;
-        const a = this.nodes[e.i];
-        const b = this.nodes[e.j];
-        if (a.inf === 1 && a.infT > 0 && b.inf === 0 && this.rng() < infectRate) { b.inf = 1; b.infT = 0; }
-        else if (b.inf === 1 && b.infT > 0 && a.inf === 0 && this.rng() < infectRate) { a.inf = 1; a.infT = 0; }
-      }
-      // 상태 전이 I→R→S
-      let infected = 0;
-      for (let k = 0; k < this.aliveNodeIdx.length; k++) {
-        const nd = this.nodes[this.aliveNodeIdx[k]];
-        if (nd.inf === 1) {
-          if (++nd.infT > recoverTicks) { nd.inf = 2; nd.infT = 0; } else infected++;
-        } else if (nd.inf === 2) {
-          if (++nd.infT > immuneTicks) { nd.inf = 0; nd.infT = 0; }
-        }
-      }
-      // 씨앗 — 감염자 0이면 우한에서 새 파동(변이)
-      if (infected === 0 && this.aliveNodeIdx.length > 20) this.seedInfection(30.6, 114.3);
+  /** 6) 팬데믹 — SIR 전염 파동(확산성 탈분극). 노선(비행)을 타고 대륙으로 번지고 뒤에 회복 자국. */
+  private pandemicStep() {
+    const { infectRate, recoverTicks, immuneTicks } = this.cfg;
+    // 전파: alive 시냅스(노선 포함) 양 끝, 자리잡은 I(infT>0)가 연결된 S를 감염(같은 틱 연쇄 방지)
+    for (let s = 0; s < this.syns.length; s++) {
+      const e = this.syns[s];
+      if (!e.alive) continue;
+      const a = this.nodes[e.i];
+      const b = this.nodes[e.j];
+      if (a.inf === 1 && a.infT > 0 && b.inf === 0 && this.rng() < infectRate) { b.inf = 1; b.infT = 0; }
+      else if (b.inf === 1 && b.infT > 0 && a.inf === 0 && this.rng() < infectRate) { a.inf = 1; a.infT = 0; }
     }
-
-    this.tick++;
-    let nodeCount = 0, synCount = 0, modSum = 0;
-    for (let i = 0; i < this.nodes.length; i++) {
-      if (this.nodes[i].alive) { nodeCount++; modSum += this.nodes[i].mod; }
+    // 상태 전이 I→R→S
+    let infected = 0;
+    for (let k = 0; k < this.aliveNodeIdx.length; k++) {
+      const nd = this.nodes[this.aliveNodeIdx[k]];
+      if (nd.inf === 1) {
+        if (++nd.infT > recoverTicks) { nd.inf = 2; nd.infT = 0; } else infected++;
+      } else if (nd.inf === 2) {
+        if (++nd.infT > immuneTicks) { nd.inf = 0; nd.infT = 0; }
+      }
     }
-    for (let s = 0; s < this.syns.length; s++) if (this.syns[s].alive) synCount++;
-    this.metrics = { tick: this.tick, nodes: nodeCount, synapses: synCount, firing, births: this.bornCount, deaths, hormone: modSum };
-    this.bornCount = 0;
+    // 씨앗 — 감염자 0이면 우한에서 새 파동(변이)
+    if (infected === 0 && this.aliveNodeIdx.length > 20) this.seedInfection(30.6, 114.3);
   }
 }
