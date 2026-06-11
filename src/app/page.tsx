@@ -24,6 +24,11 @@ export default function Home() {
       {/* 왼쪽 3/4 — 3D 씬 (지구 + 신경 가소성 망). 레이아웃 고정 */}
       <section className="relative flex-[3] min-w-0 bg-[radial-gradient(circle_at_50%_40%,#0b1430_0%,#050810_70%)]">
         <GlobeScene />
+        {/* 필름 프레임 — CSS 비네팅(WebGL 후처리 대신, 깜빡임 0). 시선을 가운데로 */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,0.5) 100%)" }}
+        />
         {isOrigin && <OriginPlaceholder />}
         <HUD />
         <VersionRemote />

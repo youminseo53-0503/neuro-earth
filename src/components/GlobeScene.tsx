@@ -3,7 +3,6 @@
 import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import { EARTH_RADIUS, getSunDirection } from "@/lib/geo";
 import { useViz } from "@/store/useViz";
 import { useUI } from "@/store/useUI";
@@ -46,22 +45,6 @@ function Controls() {
   );
 }
 
-/** 영화적 후처리 — 네온 망의 부드러운 블룸 + 비네팅. (깜빡임 방지: 그레인·색수차 제거, MSAA↑, 블룸 약하게) */
-function PostFX() {
-  return (
-    <EffectComposer multisampling={8}>
-      <Bloom
-        intensity={0.6}
-        luminanceThreshold={0.3}
-        luminanceSmoothing={0.95}
-        mipmapBlur
-        radius={0.6}
-      />
-      <Vignette eskil={false} offset={0.3} darkness={0.62} />
-    </EffectComposer>
-  );
-}
-
 /**
  * 왼쪽 3/4 3D 씬.
  * 지금은 지구 + 별 + 드래그/오토회전 컨트롤.
@@ -96,7 +79,6 @@ export default function GlobeScene() {
       {gridWave && <GridWaveLayer />}
 
       <Controls />
-      <PostFX />
     </Canvas>
   );
 }
