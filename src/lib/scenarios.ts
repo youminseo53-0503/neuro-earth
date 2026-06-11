@@ -41,9 +41,9 @@ export const MODES: ModeInfo[] = [
     id: "pandemic",
     label: "팬데믹",
     kind: "scenario",
-    badge: "시나리오 · 실제 과거 데이터 재구성",
-    blurb: "코로나19 확산 — 실제 과거 데이터로 재구성 (준비 중)",
-    status: "soon",
+    badge: "시나리오 · SIR 전염 파동(확산성 탈분극)",
+    blurb: "우한에서 시작 — 항공 노선 타고 번지는 전염 파동(빨강=감염 / 파랑=회복)",
+    status: "ready",
   },
   {
     id: "recovery",

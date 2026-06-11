@@ -1,7 +1,6 @@
 "use client";
 
 import { MODES, modeById } from "@/lib/scenarios";
-import { VERSIONS } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
 
 /**
@@ -11,14 +10,11 @@ import { useViz } from "@/store/useViz";
  *   · 옛 버전(단계 아님)을 보는 중엔 누르면 최신 단계로 점프.
  */
 export function ScenarioBar() {
-  const versionId = useViz((s) => s.versionId);
   const mode = useViz((s) => s.mode);
   const setMode = useViz((s) => s.setMode);
 
-  const cur = VERSIONS.find((v) => v.id === versionId);
-  const isStage = !!cur?.modes; // 단계를 보는 중일 때만 모드가 의미 있음
-  const activeMode = isStage ? mode : null;
-  const activeInfo = activeMode ? modeById(activeMode) : null;
+  const activeMode = mode; // 현재 모드(실시간/창세/팬데믹)
+  const activeInfo = modeById(activeMode);
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 select-none">

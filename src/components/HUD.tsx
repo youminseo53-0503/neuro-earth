@@ -13,7 +13,7 @@ export function HUD() {
   const versionId = useViz((s) => s.versionId);
   const mode = useViz((s) => s.mode);
   const version = VERSIONS.find((v) => v.id === versionId);
-  const modeInfo = version?.modes ? modeById(mode) : undefined;
+  const modeInfo = modeById(mode); // 실시간/창세/팬데믹
 
   return (
     <div className="pointer-events-none absolute left-4 top-4 select-none font-mono text-[11px] leading-relaxed">

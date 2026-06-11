@@ -108,6 +108,16 @@ function genCiv(extra: Partial<VizConfig> = {}): VizConfig {
   return { ...EM_BASE, sources: ["genesisciv"], routeGrow: true, ...extra };
 }
 
+// 팬데믹 — 실시간 망 위 SIR 전염 파동. '버전'이 아니라 하단 바의 독립 '모드'(실시간/창세와 나뉨).
+export const PANDEMIC_CONFIG: VizConfig = live({
+  mortal: true,
+  lifespan: 900,
+  softCap: 6500,
+  maxNodes: 8000,
+  pandemic: true,
+  gridWave: false,
+});
+
 export const VERSIONS: VizVersion[] = [
   {
     id: "v-origin",
@@ -295,33 +305,6 @@ export const VERSIONS: VizVersion[] = [
         areaCap: true, // 셀 한계 × cos(위도) → 극지방 과밀 방지
         softCapRamp: 3600,
         maxNodes: 8000,
-      }),
-    },
-  },
-  {
-    id: "s-pandemic",
-    n: 75,
-    label: "팬데믹 — 전염 파동(확산성 탈분극) · 우한발 SIR",
-    modes: {
-      // 실시간 현재 세계 위에 SIR 파동 — 진짜 항공 노선 타고 번짐(빨강=감염/파랑=회복)
-      live: live({
-        mortal: true,
-        lifespan: 900,
-        softCap: 6500,
-        maxNodes: 8000,
-        pandemic: true,
-        gridWave: false, // 보라 그리드 끄고 전염 파동에 집중
-      }),
-      // 보너스: 문명사로 망이 깔린 뒤 그 위에 전염 파동
-      genesis: genCiv({
-        mortal: true,
-        civAnchors: true,
-        lifespan: 900,
-        localCap: 30,
-        areaCap: true,
-        softCapRamp: 3600,
-        maxNodes: 8000,
-        pandemic: true,
       }),
     },
   },
