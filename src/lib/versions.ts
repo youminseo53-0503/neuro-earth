@@ -36,6 +36,8 @@ export interface VizConfig {
   gridWave?: boolean;
   /** 노드 크기를 작은 5단계로(선이 주인공). 끄면 옛 버전 큰 공 — 시간순 인프라 변화용 */
   smallNodes?: boolean;
+  /** 노드 절대 수명(턴오버) — 활성이어도 나이 들면 죽어 슬롯이 풀림. 활동이 옮겨다니고 정적이지 않게 */
+  mortal?: boolean;
 }
 
 export interface VizVersion {

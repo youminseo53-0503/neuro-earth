@@ -52,6 +52,8 @@ export interface ENode {
   deg: number;
   mod: number; // 호르몬(neuromodulation) 농도 — 느리게 확산·감쇠, 흥분성 끌어올림
   fatigue: number; // 피로(사회=식상함) — 과발화 시 쌓여 임계 ↑(쉬게 됨), 천천히 회복
+  born: number; // 태어난 tick (절대 수명 계산용)
+  maxAge: number; // 절대 수명(0=불멸). 활동과 무관하게 이 나이 넘으면 죽음 → 턴오버
 }
 
 export interface ESyn {
@@ -84,6 +86,7 @@ export interface EConfig {
   minW: number; // 이하면 시냅스 죽음
   refractoryTicks: number;
   nodeLifespan: number; // 이 틱 이상 비활성+저활력이면 죽음
+  maxAge: number; // 절대 수명(틱). 0=불멸. >0이면 활동과 무관하게 나이 들어 죽음(턴오버·문명 흥망)
   spontaneous: number; // 내재 활동: 매 틱 노드가 스스로 발화 시도할 확률(0=순수 자극반응)
   hormoneProb: number; // 호르몬 분비 확률(0=끔)
   hormoneRelease: number; // 분비 시 mod 증가량
@@ -118,6 +121,7 @@ export const EMERGENT_DEFAULT: EConfig = {
   minW: 0.04,
   refractoryTicks: 4,
   nodeLifespan: 220,
+  maxAge: 0, // 기본 불멸(옛 버전 유지) — 시나리오(실시간·창세)에서만 켬
   spontaneous: 0,
   hormoneProb: 0,
   hormoneRelease: 6, // 드물지만 크게 (무작위 이벤트)
@@ -178,7 +182,7 @@ export class EmergentNetwork {
     return {
       alive: false, x: 0, y: 0, z: 0, lat: 0, lon: 0, a: 0, inj: 0, vitality: 0,
       type: 1, threshold: 0.55, refrac: 0, fired: false, flash: 0, lastActive: 0, deg: 0,
-      mod: 0, fatigue: 0,
+      mod: 0, fatigue: 0, born: 0, maxAge: 0,
     };
   }
 
@@ -211,6 +215,9 @@ export class EmergentNetwork {
     n.threshold = this.cfg.threshold * (0.85 + this.rng() * 0.3);
     n.refrac = 0; n.fired = false; n.flash = 0;
     n.lastActive = this.tick; n.deg = 0;
+    n.born = this.tick;
+    // 절대 수명 — 개체마다 다르게(0.6~1.4×) 흩어 한꺼번에 안 죽게(자연스러운 턴오버)
+    n.maxAge = this.cfg.maxAge > 0 ? this.cfg.maxAge * (0.6 + this.rng() * 0.8) : 0;
     this.bornCount++;
     return slot;
   }
@@ -418,12 +425,14 @@ export class EmergentNetwork {
       if (child >= 0) this.connect(i, child);
     }
 
-    // 5) 죽음 — 오래 비활성 + 저활력
+    // 5) 죽음 — (a) 오래 비활성, 또는 (b) 절대 수명 초과(활동과 무관·턴오버)
     let deaths = 0;
     for (let k = 0; k < this.aliveNodeIdx.length; k++) {
       const idx = this.aliveNodeIdx[k];
       const nd = this.nodes[idx];
-      if (this.tick - nd.lastActive > nodeLifespan) {
+      const tooIdle = this.tick - nd.lastActive > nodeLifespan;
+      const tooOld = nd.maxAge > 0 && this.tick - nd.born > nd.maxAge;
+      if (tooIdle || tooOld) {
         this.killNode(idx);
         deaths++;
       }

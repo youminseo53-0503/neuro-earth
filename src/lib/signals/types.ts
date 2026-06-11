@@ -14,7 +14,8 @@ export type SourceId =
   | "starlink"
   | "crypto"
   | "flightslive"
-  | "netinfo";
+  | "netinfo"
+  | "genesis";
 
 export interface StimulusEvent {
   lat: number;

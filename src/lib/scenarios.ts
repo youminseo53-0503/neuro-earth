@@ -25,19 +25,38 @@ export interface Scenario {
   config: VizConfig;
 }
 
+// 실시간 — 이중 신경계(항공 emergent + 스타링크 그리드). 노드 수명(mortal)으로 정적이지 않게.
+const LIVE_CONFIG: VizConfig = {
+  showEarth: true,
+  showNet: true,
+  colorMode: "act",
+  jitter: 4,
+  sources: ["flightslive"],
+  gain: 1,
+  engine: "emergent",
+  intrinsic: true,
+  hormone: true,
+  fatigue: true,
+  homeo: true,
+  gridWave: true,
+  smallNodes: true,
+  mortal: true,
+};
+
 // 창세 — 빈 지구에서 스스로 깔리는 망(시드된 재현 가능 자극 = '이상적' 생성)
 const GENESIS_CONFIG: VizConfig = {
   showEarth: true,
   showNet: true,
   colorMode: "act",
   jitter: 4,
-  sources: ["local"],
+  sources: ["genesis"],
   gain: 1,
   engine: "emergent",
   intrinsic: true,
   hormone: true,
   homeo: true,
   smallNodes: true,
+  mortal: true,
 };
 
 export const SCENARIOS: Scenario[] = [
@@ -48,7 +67,7 @@ export const SCENARIOS: Scenario[] = [
     badge: "● LIVE — 진짜 실시간 데이터",
     blurb: "지금 이 순간의 지구 — 실시간 항공·위성 데이터로 살아 움직이는 뇌",
     status: "ready",
-    config: LATEST.config, // 이중 신경계(항공 emergent + 스타링크 그리드)
+    config: LIVE_CONFIG,
   },
   {
     id: "genesis",

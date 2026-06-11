@@ -50,13 +50,17 @@ export function EmergentLayer() {
     "|" + (config.intrinsic ? "i" : "") +
     (config.hormone ? "h" : "") +
     (config.fatigue ? "f" : "") +
-    (config.homeo ? "o" : "");
+    (config.homeo ? "o" : "") +
+    (config.mortal ? "m" : "");
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork({
       spontaneous: config.intrinsic ? 0.01 : 0,
       hormoneProb: config.hormone ? 0.006 : 0,
       fatigueGain: config.fatigue ? 0.18 : 0,
       homeoRate: config.homeo ? 0.03 : 0,
+      maxAge: config.mortal ? 1500 : 0, // 절대 수명(틱) — 활성이어도 나이 들면 죽어 턴오버
+      // 창세(이상적)는 수상돌기 집중을 낮춰 전 지구 고르게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.
+      ...(config.sources.includes("genesis") ? { growthProb: 0.03 } : {}),
     });
     const sources = makeSources(config.sources);
 
