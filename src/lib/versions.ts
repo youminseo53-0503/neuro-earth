@@ -48,6 +48,40 @@ export interface VizVersion {
   config: VizConfig;
 }
 
+// 시나리오(실시간/창세)와 버전 리모컨이 '같은 config 객체'를 공유 → 둘이 항상 일치(드리프트 방지).
+// 실시간 — 이중 신경계(항공 emergent + 스타링크 그리드) + 노드 수명.
+export const LIVE_CONFIG: VizConfig = {
+  showEarth: true,
+  showNet: true,
+  colorMode: "act",
+  jitter: 4,
+  sources: ["flightslive"],
+  gain: 1,
+  engine: "emergent",
+  intrinsic: true,
+  hormone: true,
+  fatigue: true,
+  homeo: true,
+  gridWave: true,
+  smallNodes: true,
+  mortal: true,
+};
+// 창세 — 육지 거점 번짐 + 8대 문명 앵커.
+export const GENESIS_CONFIG: VizConfig = {
+  showEarth: true,
+  showNet: true,
+  colorMode: "act",
+  jitter: 4,
+  sources: ["genesis"],
+  gain: 1,
+  engine: "emergent",
+  intrinsic: true,
+  hormone: true,
+  homeo: true,
+  smallNodes: true,
+  mortal: true,
+};
+
 export const VERSIONS: VizVersion[] = [
   {
     id: "v-origin",
@@ -248,20 +282,13 @@ export const VERSIONS: VizVersion[] = [
     id: "v-genesis-cores",
     n: 65,
     label: "창세 — 육지 거점 번짐 + 8대 문명 앵커 (Out of Africa)",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["genesis"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-      hormone: true,
-      homeo: true,
-      smallNodes: true,
-      mortal: true,
-    },
+    config: GENESIS_CONFIG,
+  },
+  {
+    id: "v-live",
+    n: 57,
+    label: "실시간 — 현재 통합형 (항공·스타링크·수명)",
+    config: LIVE_CONFIG,
   },
 ];
 

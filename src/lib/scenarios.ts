@@ -1,5 +1,5 @@
 import type { VizConfig } from "./versions";
-import { LATEST } from "./versions";
+import { LIVE_CONFIG, GENESIS_CONFIG } from "./versions";
 
 // ─────────────────────────────────────────────────────────────
 // 시나리오 프리셋 — 보고서의 4개 '입구'.
@@ -23,41 +23,9 @@ export interface Scenario {
   /** ready=동작 / soon=데이터 붙는 중 */
   status: "ready" | "soon";
   config: VizConfig;
+  /** 이 시나리오에 대응하는 버전 리모컨 id (있으면 양방향 연동) */
+  versionId?: string;
 }
-
-// 실시간 — 이중 신경계(항공 emergent + 스타링크 그리드). 노드 수명(mortal)으로 정적이지 않게.
-const LIVE_CONFIG: VizConfig = {
-  showEarth: true,
-  showNet: true,
-  colorMode: "act",
-  jitter: 4,
-  sources: ["flightslive"],
-  gain: 1,
-  engine: "emergent",
-  intrinsic: true,
-  hormone: true,
-  fatigue: true,
-  homeo: true,
-  gridWave: true,
-  smallNodes: true,
-  mortal: true,
-};
-
-// 창세 — 빈 지구에서 스스로 깔리는 망(시드된 재현 가능 자극 = '이상적' 생성)
-const GENESIS_CONFIG: VizConfig = {
-  showEarth: true,
-  showNet: true,
-  colorMode: "act",
-  jitter: 4,
-  sources: ["genesis"],
-  gain: 1,
-  engine: "emergent",
-  intrinsic: true,
-  hormone: true,
-  homeo: true,
-  smallNodes: true,
-  mortal: true,
-};
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -68,6 +36,7 @@ export const SCENARIOS: Scenario[] = [
     blurb: "지금 이 순간의 지구 — 실시간 항공·위성 데이터로 살아 움직이는 뇌",
     status: "ready",
     config: LIVE_CONFIG,
+    versionId: "v-live",
   },
   {
     id: "genesis",
@@ -77,6 +46,7 @@ export const SCENARIOS: Scenario[] = [
     blurb: "빈 지구에서 스스로 깔리는 망 — 구조의 탄생을 처음부터",
     status: "ready",
     config: GENESIS_CONFIG,
+    versionId: "v-genesis-cores",
   },
   {
     id: "pandemic",
@@ -85,7 +55,7 @@ export const SCENARIOS: Scenario[] = [
     badge: "시나리오 · 실제 과거 데이터 재구성",
     blurb: "코로나19 확산 — 실제 과거 데이터로 재구성 (준비 중)",
     status: "soon",
-    config: LATEST.config,
+    config: LIVE_CONFIG,
   },
   {
     id: "recovery",
@@ -94,7 +64,7 @@ export const SCENARIOS: Scenario[] = [
     badge: "시나리오 · 재구성",
     blurb: "팬데믹 이후의 회복 — 다시 이어지는 길 (준비 중)",
     status: "soon",
-    config: LATEST.config,
+    config: LIVE_CONFIG,
   },
 ];
 
