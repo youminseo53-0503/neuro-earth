@@ -46,6 +46,8 @@ export interface VizConfig {
   maxNodes?: number;
   /** 밀도 의존 자기조절 목표(수용한계). 하드캡 무관 이 근처에서 출렁이며 유지 */
   softCap?: number;
+  /** 수용한계를 이 틱 동안 L자(느림→폭발)로 키움(문명사 성장곡선). 0/없음=상수 */
+  softCapRamp?: number;
   /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
   lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
@@ -92,6 +94,10 @@ function genLocal(extra: Partial<VizConfig> = {}): VizConfig {
 function genCores(extra: Partial<VizConfig> = {}): VizConfig {
   // 창세 — 육지 거점 번짐(Out of Africa)
   return { ...EM_BASE, sources: ["genesis"], ...extra };
+}
+function genCiv(extra: Partial<VizConfig> = {}): VizConfig {
+  // 문명사 — 초기인류→기차·자동차→비행기 폭발(L자), 노선 점진 연결
+  return { ...EM_BASE, sources: ["genesisciv"], routeGrow: true, ...extra };
 }
 
 export const VERSIONS: VizVersion[] = [
@@ -233,6 +239,22 @@ export const VERSIONS: VizVersion[] = [
     modes: {
       live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
       genesis: genCores({ mortal: true, civAnchors: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
+    },
+  },
+  {
+    id: "s-civhistory",
+    n: 71,
+    label: "문명사 — 초기인류→기차·자동차→비행기 (L자 폭발)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        softCap: 6500,
+        softCapRamp: 3600,
+        maxNodes: 8000,
+      }),
     },
   },
 ];

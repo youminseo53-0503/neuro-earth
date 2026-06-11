@@ -6,7 +6,7 @@ import { createStarlinkSource } from "./sources/starlink";
 import { createMarketSource } from "./sources/market";
 import { createFlightsLiveSource } from "./sources/flightsLive";
 import { createWikiInfoSource } from "./sources/wikiInfo";
-import { createGenesisSource } from "./sources/genesis";
+import { createGenesisSource, createGenesisCivSource } from "./sources/genesis";
 
 const FACTORIES: Record<SourceId, () => SignalSource> = {
   local: () => createLocalSource(),
@@ -17,6 +17,7 @@ const FACTORIES: Record<SourceId, () => SignalSource> = {
   flightslive: () => createFlightsLiveSource(),
   netinfo: () => createWikiInfoSource(),
   genesis: () => createGenesisSource(),
+  genesisciv: () => createGenesisCivSource(),
 };
 
 /**

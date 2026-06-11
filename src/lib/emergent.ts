@@ -90,6 +90,7 @@ export interface EConfig {
   nodeLifespan: number; // 이 틱 이상 비활성+저활력이면 죽음
   maxAge: number; // 절대 수명(틱). 0=불멸. >0이면 활동과 무관하게 나이 들어 죽음(턴오버·문명 흥망)
   softCap: number; // 밀도 의존 자기조절 목표(수용한계). 0=끔. N이 여기 가까우면 탄생률↓ → 하드캡 무관 ~softCap에서 출렁이며 유지
+  softCapRamp: number; // >0이면 수용한계를 이 틱 동안 L자(느림→폭발)로 키움(문명사 성장곡선). 0=상수
   spontaneous: number; // 내재 활동: 매 틱 노드가 스스로 발화 시도할 확률(0=순수 자극반응)
   hormoneProb: number; // 호르몬 분비 확률(0=끔)
   hormoneRelease: number; // 분비 시 mod 증가량
@@ -126,6 +127,7 @@ export const EMERGENT_DEFAULT: EConfig = {
   nodeLifespan: 220,
   maxAge: 0, // 기본 불멸(옛 버전 유지) — 시나리오(실시간·창세)에서만 켬
   softCap: 0, // 기본 끔
+  softCapRamp: 0, // 기본 상수(램프 없음)
   spontaneous: 0,
   hormoneProb: 0,
   hormoneRelease: 6, // 드물지만 크게 (무작위 이벤트)
@@ -316,6 +318,15 @@ export class EmergentNetwork {
     return true;
   }
 
+  /** 현재 유효 수용한계 — softCapRamp>0이면 L자(느림→폭발)로 키운 값(문명사 성장곡선) */
+  private effSoftCap(): number {
+    const { softCap, softCapRamp } = this.cfg;
+    if (softCap <= 0) return 0;
+    if (softCapRamp <= 0) return softCap;
+    const p = Math.min(1, this.tick / softCapRamp);
+    return softCap * (p * p * p); // 세제곱 → 느린 시작, 폭발적 끝
+  }
+
   /** (위도,경도)에 자극. 근처 노드가 있으면 활성, 없으면 새 노드 탄생. */
   injectStimulus(lat: number, lon: number, strength: number) {
     const [x, y, z] = latLonToUnit(lat, lon);
@@ -326,8 +337,9 @@ export class EmergentNetwork {
       n.inj += strength;
       n.lastActive = this.tick;
     } else if (Math.abs(strength) > 0.15) {
-      // 밀도 의존 탄생률 — N이 softCap에 가까울수록 ↓(자기조절). softCap=0이면 끔.
-      const reg = this.cfg.softCap > 0 ? 1 - this.aliveNodeIdx.length / this.cfg.softCap : 1;
+      // 밀도 의존 탄생률 — N이 (램프된) 수용한계에 가까울수록 ↓. softCap=0이면 끔.
+      const cap = this.effSoftCap();
+      const reg = cap > 0 ? 1 - this.aliveNodeIdx.length / cap : 1;
       if (reg > 0 && this.rng() < this.cfg.birthProb * reg) this.birth(lat, lon, Math.abs(strength));
     }
   }
@@ -456,7 +468,8 @@ export class EmergentNetwork {
     }
 
     // 4b) 수상돌기 성장 — 허브(고활력)가 가까이에 자식 노드를 낳음 (밀도 의존 자기조절)
-    const growReg = this.cfg.softCap > 0 ? Math.max(0, 1 - this.aliveNodeIdx.length / this.cfg.softCap) : 1;
+    const gcap = this.effSoftCap();
+    const growReg = gcap > 0 ? Math.max(0, 1 - this.aliveNodeIdx.length / gcap) : 1;
     for (let f = 0; f < firedThisStep.length; f++) {
       const i = firedThisStep[f];
       const ni = this.nodes[i];

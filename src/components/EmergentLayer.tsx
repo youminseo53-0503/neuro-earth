@@ -55,6 +55,7 @@ export function EmergentLayer() {
     (config.civAnchors ? "C" : "") +
     "|" + (config.maxNodes ?? 1200) +
     "/" + (config.softCap ?? 0) +
+    "/" + (config.softCapRamp ?? 0) +
     "/" + (config.lifespan ?? 0);
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork({
@@ -64,6 +65,7 @@ export function EmergentLayer() {
       homeoRate: config.homeo ? 0.03 : 0,
       maxAge: config.lifespan ?? (config.mortal ? 1500 : 0), // 절대 수명(틱) — 나이 들면 죽어 턴오버
       softCap: config.softCap ?? 0, // 밀도 의존 자기조절(천장 무관 ~softCap 유지)
+      softCapRamp: config.softCapRamp ?? 0, // L자 성장곡선(문명사)
       maxNodes: config.maxNodes ?? 1200, // 하드 슬롯 상한(안전망). 옛 버전 1200
       maxSyn: config.maxNodes ? Math.max(7000, config.maxNodes * 2) : 7000,
       // 창세(이상적)는 수상돌기 집중을 낮춰 거점들이 고르게 번지게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.

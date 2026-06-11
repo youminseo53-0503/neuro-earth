@@ -1,5 +1,5 @@
 import { mulberry32 } from "../../seededRng";
-import type { SignalSource, StimulusEvent } from "../types";
+import type { RouteEvent, SignalSource, StimulusEvent } from "../types";
 
 // 창세(genesis) 소스 — '이상적' 재구성. 인터넷·계정 불필요(시드 = 재현 가능).
 //   · 바다(태평양 등)가 아니라 '육지 핵심 거점'(문명 발상지)에서 탄생.
@@ -86,6 +86,114 @@ export function createGenesisSource(seed = 4242): SignalSource {
           const dLon = ((rng() - 0.5) * 2 * spread) / Math.max(0.25, Math.cos(clat / DEG));
           out.push({ lat: clat + dLat, lon: clon + dLon, strength: 0.6 });
         }
+      }
+      return out;
+    },
+  };
+}
+
+// ── 문명사(genesis-civ) — 인류 문명 성장곡선(L자/하키스틱) ──
+// 초기 인류(핵심 지역, 느림·평탄) → 기차·자동차(지역 확산) → 비행기(대륙간 아치)로 폭발.
+// 자기조절(softCap)과 합쳐져 ~1분에 천장. 슬로우-슬로우-폭발.
+const P1 = 2200; // 초기 인류 끝(핵심 지역만, 평탄) — ~37초@60fps
+const P2 = 3400; // 기차·자동차 끝(지역 확산) — ~57초, 이후 비행기 폭발
+
+function uvec(lat: number, lon: number): [number, number, number] {
+  const p = (90 - lat) / DEG;
+  const t = (lon + 180) / DEG;
+  return [-Math.sin(p) * Math.cos(t), Math.cos(p), Math.sin(p) * Math.sin(t)];
+}
+
+export function createGenesisCivSource(seed = 4242): SignalSource {
+  const rng = mulberry32(seed);
+  let nextAnchor = 0;
+
+  // 전 지구 피보나치(폭발기 글로벌 확산용)
+  const FIB: [number, number][] = [];
+  const NF = 200;
+  const GA = Math.PI * (3 - Math.sqrt(5));
+  for (let k = 0; k < NF; k++) {
+    const y = 1 - (k / (NF - 1)) * 2;
+    const lat = Math.asin(Math.max(-1, Math.min(1, y))) * DEG;
+    let lon = (((k * GA * DEG) % 360) + 360) % 360;
+    if (lon > 180) lon -= 360;
+    FIB.push([lat, lon]);
+  }
+
+  // 노선 후보 — 거점 쌍을 대권 거리로 분류(중거리=기차/자동차, 장거리=비행기)
+  const cu = CORES.map(([la, lo]) => uvec(la, lo));
+  const regional: RouteEvent[] = [];
+  const longHaul: RouteEvent[] = [];
+  for (let i = 0; i < CORES.length; i++) {
+    for (let j = i + 1; j < CORES.length; j++) {
+      const dot = cu[i][0] * cu[j][0] + cu[i][1] * cu[j][1] + cu[i][2] * cu[j][2];
+      const ang = Math.acos(Math.max(-1, Math.min(1, dot)));
+      const ev: RouteEvent = { latA: CORES[i][0], lonA: CORES[i][1], latB: CORES[j][0], lonB: CORES[j][1], weight: 0.4 };
+      if (ang > 0.9) longHaul.push(ev); // 대륙 간(비행기)
+      else if (ang > 0.3) regional.push(ev); // 지역(기차·자동차)
+    }
+  }
+  let regCursor = 0;
+  let longCursor = 0;
+
+  function jitter(lat: number, lon: number, reach: number, strength: number): StimulusEvent {
+    const dLat = (rng() - 0.5) * 2 * reach;
+    const dLon = ((rng() - 0.5) * 2 * reach) / Math.max(0.25, Math.cos(lat / DEG));
+    return { lat: lat + dLat, lon: lon + dLon, strength };
+  }
+
+  const ANCHOR_EVERY = Math.floor(P1 / (CIV_ANCHORS.length + 1)); // 8대 문명 phase1 동안 역사순 등장
+
+  return {
+    id: "genesisciv",
+    label: "문명사 (초기인류→기차·자동차→비행기 폭발)",
+    enabled: true,
+    pollAnchors(tick: number) {
+      const out: { lat: number; lon: number; name: string }[] = [];
+      while (nextAnchor < CIV_ANCHORS.length && tick >= (nextAnchor + 1) * ANCHOR_EVERY) {
+        const c = CIV_ANCHORS[nextAnchor++];
+        out.push({ lat: c.lat, lon: c.lon, name: c.name });
+      }
+      return out;
+    },
+    poll(tick: number): StimulusEvent[] {
+      const out: StimulusEvent[] = [];
+      if (tick < P1) {
+        // 초기 인류 — 드러난 문명 핵심에서만, 작은 반경. 거점이 차면 더는 안 늘어 평탄(L자 바닥).
+        const revealed = Math.max(1, Math.min(CIV_ANCHORS.length, Math.floor(tick / ANCHOR_EVERY)));
+        for (let k = 0; k < 2; k++) {
+          const a = CIV_ANCHORS[Math.floor(rng() * revealed)];
+          out.push(jitter(a.lat, a.lon, 4, 0.5));
+        }
+      } else if (tick < P2) {
+        // 기차·자동차 — 거점으로 지역 확산(반경·점수 증가)
+        const t = (tick - P1) / (P2 - P1);
+        const nPts = 3 + Math.floor(t * 7);
+        const reach = 6 + t * 7;
+        for (let k = 0; k < nPts; k++) {
+          const c = CORES[Math.floor(rng() * CORES.length)];
+          out.push(jitter(c[0], c[1], reach, 0.55));
+        }
+      } else {
+        // 비행기 — 전 지구 폭발
+        for (let k = 0; k < 18; k++) {
+          const c = rng() < 0.6 ? FIB[Math.floor(rng() * FIB.length)] : CORES[Math.floor(rng() * CORES.length)];
+          out.push(jitter(c[0], c[1], 14, 0.6));
+        }
+      }
+      return out;
+    },
+    pollRoutes(tick: number): RouteEvent[] {
+      // phase1: 노선 없음(걸어다님). phase2: 지역(중거리). phase3: 비행기(장거리·폭발).
+      if (tick < P1 || tick % 14 !== 0) return [];
+      const out: RouteEvent[] = [];
+      if (tick < P2) {
+        if (regional.length === 0) return [];
+        for (let k = 0; k < 6; k++) { out.push(regional[regCursor % regional.length]); regCursor++; }
+      } else {
+        const pool = longHaul.length ? longHaul : regional;
+        if (pool.length === 0) return [];
+        for (let k = 0; k < 10; k++) { out.push(pool[longCursor % pool.length]); longCursor++; }
       }
       return out;
     },
