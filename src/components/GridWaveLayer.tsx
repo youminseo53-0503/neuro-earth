@@ -91,7 +91,7 @@ export function GridWaveLayer() {
     for (const src of sources) {
       if (!src.enabled) continue;
       for (const ev of src.poll(tick))
-        net.injectStimulus(ev.lat, ev.lon, ev.strength * 0.6, ev.radius); // 활성 낮춤
+        net.injectStimulus(ev.lat, ev.lon, ev.strength, ev.radius); // 신호 원래(처음) 수준
     }
     net.step();
 
@@ -117,11 +117,14 @@ export function GridWaveLayer() {
     const syn = net.synapses;
     for (let s = 0; s < syn.length; s++) {
       const e = syn[s];
-      // 색(보라 계열)은 고정 — 세기는 '투명도(알파=밀도)'로 표현. 크게가 아니라 짙게.
+      // 색(보라 계열)은 고정 — 세기는 '투명도(알파=밀도)'로. 크게가 아니라 짙게.
+      // 감마 곡선으로 단계를 드라마틱하게: 약한 연결은 거의 0(안 보임) → 강할수록 급격히 짙어짐.
       //  · 가소성: 학습된 강도 e.w가 클수록 평소에도 짙음(자주 쓰인 경로가 진하게 남음)
       //  · 흐름:   신호가 지날 때(e.act) 확 짙어졌다가 식음
       const plast = Math.min(1, e.w * 1.3);
-      const a = Math.min(1, 0.04 + plast * 0.4 + e.act * 0.7);
+      const base = Math.pow(plast, 2.4) * 0.85; // 약하면 ~0, 강하면 ~0.85
+      const flow = e.act * e.act * 0.95; // 흐름도 제곱 → 또렷한 펄스
+      const a = Math.min(1, base + flow);
       const o = s * 8;
       arr[o] = 0.62; arr[o + 1] = 0.26; arr[o + 2] = 1.0; arr[o + 3] = a;
       arr[o + 4] = 0.62; arr[o + 5] = 0.26; arr[o + 6] = 1.0; arr[o + 7] = a;
