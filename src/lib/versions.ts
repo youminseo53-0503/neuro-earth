@@ -32,8 +32,10 @@ export interface VizConfig {
   fatigue?: boolean;
   /** 항상성(평준화) — 입력 정규화로 폭주·쏠림 방지 */
   homeo?: boolean;
-  /** 그리드 파동 레이어 — 고정 인프라 위 시장 파동(보라), 항공망과 독립 */
+  /** 그리드 파동 레이어 — 고정 인프라(스타링크) 위 정보 파동(보라), 항공망과 독립 */
   gridWave?: boolean;
+  /** 노드 크기를 작은 5단계로(선이 주인공). 끄면 옛 버전 큰 공 — 시간순 인프라 변화용 */
+  smallNodes?: boolean;
 }
 
 export interface VizVersion {
@@ -186,7 +188,7 @@ export const VERSIONS: VizVersion[] = [
   {
     id: "v-dual",
     n: 45,
-    label: "이중 신경계 — 항공(이동) + 인터넷 정보 파동",
+    label: "이중 신경계 — 체성(항공·이동) + 자율(스타링크 배경망)",
     config: {
       showEarth: true,
       showNet: true,
@@ -200,6 +202,7 @@ export const VERSIONS: VizVersion[] = [
       fatigue: true,
       homeo: true,
       gridWave: true,
+      smallNodes: true,
     },
   },
 ];

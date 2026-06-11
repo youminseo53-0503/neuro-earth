@@ -13,7 +13,8 @@ import { useMetrics } from "@/store/useMetrics";
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
 const SYN_CAP = 7000;
-const NODE_LV = [0.3, 0.55, 0.9, 1.35, 1.9]; // 이산 노드 크기 레벨(항공 뇌 원본 — 명확히 구분)
+const NODE_LV_BIG = [0.3, 0.55, 0.9, 1.35, 1.9]; // 옛 버전 — 큰 공(명확히 구분)
+const NODE_LV_SMALL = [0.2, 0.34, 0.5, 0.68, 0.9]; // '줄여!' 이후 버전 — 작은 공(선이 주인공)
 const THICK_BASE = 0.0042; // 선 굵기 기준
 const ROUTE_CAP = 700;
 const ARC_SEG = 18;
@@ -40,6 +41,8 @@ export function EmergentLayer() {
   const earthVisible = useUI((s) => s.earthVisible);
   const earthShown = earthVisible && config.showEarth;
   const setE = useMetrics((s) => s.setEmergent);
+  // 노드 크기는 버전 속성 — 옛 버전은 큰 공 그대로, 'smallNodes' 버전부터 작은 공
+  const NODE_LV = config.smallNodes ? NODE_LV_SMALL : NODE_LV_BIG;
 
   const sig =
     config.sources.join(",") +
