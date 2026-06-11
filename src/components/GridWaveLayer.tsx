@@ -125,7 +125,8 @@ export function GridWaveLayer() {
       const plast = Math.min(1, e.w * 1.6);
       const base = Math.pow(plast, 2.0) * 0.8; // 약하면 ~0(드라마틱), 강하면 ~0.8(천장) — 학습 잔존이 보임
       const f = (flowBuf[s] = Math.max(e.act, flowBuf[s] * 0.88)); // 느린 감쇠 = 혜성 꼬리(표시 전용·로컬)
-      const flow = Math.pow(f, 1.6) * 0.95; // 머리는 또렷, 꼬리는 살아 이어짐
+      // 흐름 밝기를 '학습된 강도'에 비례 → 단발 통과(안 쓰인 길)는 희미하게만 번쩍, 자주 쓰인 길만 밝게 흐름
+      const flow = Math.pow(f, 1.6) * 0.95 * (0.25 + 0.75 * plast);
       const a = Math.min(1, base + flow);
       const o = s * 8;
       arr[o] = 0.62; arr[o + 1] = 0.26; arr[o + 2] = 1.0; arr[o + 3] = a;
