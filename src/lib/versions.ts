@@ -46,6 +46,8 @@ export interface VizConfig {
   maxNodes?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
   civAnchors?: boolean;
+  /** 항공 노선 아치를 출발→도착으로 점진적으로 그림(한 번에 팍 X) */
+  routeGrow?: boolean;
 }
 
 /** 단계를 보는 방식 — 직각 축 */
@@ -77,7 +79,7 @@ const EM_BASE = {
   homeo: true,
 };
 function live(extra: Partial<VizConfig> = {}): VizConfig {
-  return { ...EM_BASE, sources: ["flightslive"], gridWave: true, fatigue: true, ...extra };
+  return { ...EM_BASE, sources: ["flightslive"], gridWave: true, fatigue: true, routeGrow: true, ...extra };
 }
 function genLocal(extra: Partial<VizConfig> = {}): VizConfig {
   // 초기 창세 — 로컬 시드(아프리카 뭉침)

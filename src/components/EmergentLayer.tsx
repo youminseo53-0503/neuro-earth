@@ -228,9 +228,11 @@ export function EmergentLayer() {
       const bulge = BULGE_MIN + BULGE_SPAN * (Math.acos(bdot) / Math.PI);
       const tc = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
       const r = 0.3 * tc, g = 0.8 * tc, bl = 1.0 * tc;
+      // 점진적 연결: grow(0→1)까지만 그림 — 출발(i)에서 도착(j)으로 아치가 그어짐
+      const lastK = config.routeGrow ? Math.max(1, Math.round(e.grow * (ARC_SEG - 1))) : ARC_SEG - 1;
       if (earthShown) {
         let px = 0, py = 0, pz = 0;
-        for (let k = 0; k < ARC_SEG; k++) {
+        for (let k = 0; k <= lastK; k++) {
           const tt = k / (ARC_SEG - 1);
           const [ux, uy, uz] = slerp(a, b, tt);
           const m = Math.hypot(ux, uy, uz) || 1;
@@ -247,9 +249,12 @@ export function EmergentLayer() {
           px = x; py = y; pz = z;
         }
       } else if (rc < maxSeg) {
+        // 지구 끄면 내부 직선 — grow까지만 뻗음
+        const gp = config.routeGrow ? e.grow : 1;
+        const ex = a.x + (b.x - a.x) * gp, ey = a.y + (b.y - a.y) * gp, ez = a.z + (b.z - a.z) * gp;
         const o = rc * 6;
         rPos[o] = a.x * SURF; rPos[o + 1] = a.y * SURF; rPos[o + 2] = a.z * SURF;
-        rPos[o + 3] = b.x * SURF; rPos[o + 4] = b.y * SURF; rPos[o + 5] = b.z * SURF;
+        rPos[o + 3] = ex * SURF; rPos[o + 4] = ey * SURF; rPos[o + 5] = ez * SURF;
         rCol[o] = r; rCol[o + 1] = g; rCol[o + 2] = bl;
         rCol[o + 3] = r; rCol[o + 4] = g; rCol[o + 5] = bl;
         rc++;

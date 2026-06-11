@@ -66,6 +66,7 @@ export interface ESyn {
   act: number;
   use: number; // 누적 사용량 — 선 굵기(거의 한계 없이 자라되 소프트 캡)
   route: boolean; // 장거리 축삭(항공 노선) — 아크로 렌더
+  grow: number; // 노선이 그어지는 진행도 0→1(출발→도착 점진적 연결). 비노선은 1
 }
 
 export interface EConfig {
@@ -173,7 +174,7 @@ export class EmergentNetwork {
     this.inSum = new Float32Array(this.cfg.maxNodes);
     this.nodes = Array.from({ length: this.cfg.maxNodes }, () => this.blankNode());
     this.syns = Array.from({ length: this.cfg.maxSyn }, () => ({
-      alive: false, i: 0, j: 0, w: 0, sign: 1, act: 0, use: 0, route: false,
+      alive: false, i: 0, j: 0, w: 0, sign: 1, act: 0, use: 0, route: false, grow: 1,
     }));
     for (let i = this.cfg.maxNodes - 1; i >= 0; i--) this.freeNodes.push(i);
     for (let i = this.cfg.maxSyn - 1; i >= 0; i--) this.freeSyns.push(i);
@@ -234,6 +235,7 @@ export class EmergentNetwork {
     s.act = 0;
     s.use = 0;
     s.route = route;
+    s.grow = route ? 0 : 1; // 노선은 0에서 시작해 점진적으로 그어짐
     this.nodes[i].deg++;
     this.nodes[j].deg++;
     this.edges.add(this.ekey(i, j));
@@ -339,6 +341,7 @@ export class EmergentNetwork {
     for (let s = 0; s < this.syns.length; s++) {
       const e = this.syns[s];
       if (!e.alive) continue;
+      if (e.route && e.grow < 1) e.grow = Math.min(1, e.grow + 0.04); // 노선 점진적 연결(~25틱)
       if (this.nodes[e.i].fired) {
         input.set(e.j, (input.get(e.j) ?? 0) + e.sign * e.w);
         e.act = 1;
