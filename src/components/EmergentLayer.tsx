@@ -53,15 +53,18 @@ export function EmergentLayer() {
     (config.homeo ? "o" : "") +
     (config.mortal ? "m" : "") +
     (config.civAnchors ? "C" : "") +
-    "|" + (config.maxNodes ?? 1200);
+    "|" + (config.maxNodes ?? 1200) +
+    "/" + (config.softCap ?? 0) +
+    "/" + (config.lifespan ?? 0);
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork({
       spontaneous: config.intrinsic ? 0.01 : 0,
       hormoneProb: config.hormone ? 0.006 : 0,
       fatigueGain: config.fatigue ? 0.18 : 0,
       homeoRate: config.homeo ? 0.03 : 0,
-      maxAge: config.mortal ? 1500 : 0, // 절대 수명(틱) — 활성이어도 나이 들면 죽어 턴오버
-      maxNodes: config.maxNodes ?? 1200, // 노드 슬롯 상한(밀도). 옛 버전 1200, 실시간·창세 6000
+      maxAge: config.lifespan ?? (config.mortal ? 1500 : 0), // 절대 수명(틱) — 나이 들면 죽어 턴오버
+      softCap: config.softCap ?? 0, // 밀도 의존 자기조절(천장 무관 ~softCap 유지)
+      maxNodes: config.maxNodes ?? 1200, // 하드 슬롯 상한(안전망). 옛 버전 1200
       maxSyn: config.maxNodes ? Math.max(7000, config.maxNodes * 2) : 7000,
       // 창세(이상적)는 수상돌기 집중을 낮춰 거점들이 고르게 번지게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.
       ...(config.sources.includes("genesis") ? { growthProb: 0.05 } : {}),

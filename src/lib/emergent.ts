@@ -89,6 +89,7 @@ export interface EConfig {
   refractoryTicks: number;
   nodeLifespan: number; // 이 틱 이상 비활성+저활력이면 죽음
   maxAge: number; // 절대 수명(틱). 0=불멸. >0이면 활동과 무관하게 나이 들어 죽음(턴오버·문명 흥망)
+  softCap: number; // 밀도 의존 자기조절 목표(수용한계). 0=끔. N이 여기 가까우면 탄생률↓ → 하드캡 무관 ~softCap에서 출렁이며 유지
   spontaneous: number; // 내재 활동: 매 틱 노드가 스스로 발화 시도할 확률(0=순수 자극반응)
   hormoneProb: number; // 호르몬 분비 확률(0=끔)
   hormoneRelease: number; // 분비 시 mod 증가량
@@ -124,6 +125,7 @@ export const EMERGENT_DEFAULT: EConfig = {
   refractoryTicks: 4,
   nodeLifespan: 220,
   maxAge: 0, // 기본 불멸(옛 버전 유지) — 시나리오(실시간·창세)에서만 켬
+  softCap: 0, // 기본 끔
   spontaneous: 0,
   hormoneProb: 0,
   hormoneRelease: 6, // 드물지만 크게 (무작위 이벤트)
@@ -323,8 +325,10 @@ export class EmergentNetwork {
       const n = this.nodes[near];
       n.inj += strength;
       n.lastActive = this.tick;
-    } else if (Math.abs(strength) > 0.15 && this.rng() < this.cfg.birthProb) {
-      this.birth(lat, lon, Math.abs(strength));
+    } else if (Math.abs(strength) > 0.15) {
+      // 밀도 의존 탄생률 — N이 softCap에 가까울수록 ↓(자기조절). softCap=0이면 끔.
+      const reg = this.cfg.softCap > 0 ? 1 - this.aliveNodeIdx.length / this.cfg.softCap : 1;
+      if (reg > 0 && this.rng() < this.cfg.birthProb * reg) this.birth(lat, lon, Math.abs(strength));
     }
   }
 
@@ -451,12 +455,13 @@ export class EmergentNetwork {
       if (j >= 0 && this.nodes[j].deg < maxDeg && !this.hasEdge(i, j)) this.connect(i, j);
     }
 
-    // 4b) 수상돌기 성장 — 허브(고활력)가 가까이에 자식 노드를 낳음
+    // 4b) 수상돌기 성장 — 허브(고활력)가 가까이에 자식 노드를 낳음 (밀도 의존 자기조절)
+    const growReg = this.cfg.softCap > 0 ? Math.max(0, 1 - this.aliveNodeIdx.length / this.cfg.softCap) : 1;
     for (let f = 0; f < firedThisStep.length; f++) {
       const i = firedThisStep[f];
       const ni = this.nodes[i];
       if (ni.vitality < 0.45 || ni.deg >= maxDeg) continue;
-      if (this.rng() >= growthProb || this.freeNodes.length === 0) continue;
+      if (this.rng() >= growthProb * growReg || this.freeNodes.length === 0) continue;
       const ox = ni.x + (this.rng() - 0.5) * growthOffset * 2;
       const oy = ni.y + (this.rng() - 0.5) * growthOffset * 2;
       const oz = ni.z + (this.rng() - 0.5) * growthOffset * 2;

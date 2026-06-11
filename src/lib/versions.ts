@@ -44,6 +44,10 @@ export interface VizConfig {
   mortal?: boolean;
   /** emergent 노드 슬롯 상한(밀도). 안 주면 기본 1200 */
   maxNodes?: number;
+  /** 밀도 의존 자기조절 목표(수용한계). 하드캡 무관 이 근처에서 출렁이며 유지 */
+  softCap?: number;
+  /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
+  lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
   civAnchors?: boolean;
   /** 항공 노선 아치를 출발→도착으로 점진적으로 그림(한 번에 팍 X) */
@@ -220,6 +224,15 @@ export const VERSIONS: VizVersion[] = [
     modes: {
       live: live({ mortal: true, maxNodes: 6000 }),
       genesis: genCores({ mortal: true, civAnchors: true, maxNodes: 6000 }),
+    },
+  },
+  {
+    id: "s-balance",
+    n: 70,
+    label: "자기조절 — 천장 무관 ~6천 유지(다이나믹 증감)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
+      genesis: genCores({ mortal: true, civAnchors: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
     },
   },
 ];
