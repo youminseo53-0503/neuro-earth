@@ -4,34 +4,58 @@ const TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const STATES_URL = "https://opensky-network.org/api/states/all";
 
-// 주요 공항 거점 (ICAO, 위도, 경도)
+// 주요 공항 거점 (ICAO, 위도, 경도) — 대륙별 균형 있게 분포
 const AIRPORTS: { icao: string; lat: number; lon: number }[] = [
-  { icao: "ATL", lat: 33.64, lon: -84.43 }, { icao: "PEK", lat: 40.08, lon: 116.58 },
-  { icao: "LHR", lat: 51.47, lon: -0.46 }, { icao: "HND", lat: 35.55, lon: 139.78 },
-  { icao: "LAX", lat: 33.94, lon: -118.41 }, { icao: "CDG", lat: 49.01, lon: 2.55 },
-  { icao: "DXB", lat: 25.25, lon: 55.36 }, { icao: "FRA", lat: 50.03, lon: 8.56 },
-  { icao: "IST", lat: 41.26, lon: 28.74 }, { icao: "AMS", lat: 52.31, lon: 4.76 },
-  { icao: "CAN", lat: 23.39, lon: 113.3 }, { icao: "ICN", lat: 37.46, lon: 126.44 },
-  { icao: "SIN", lat: 1.36, lon: 103.99 }, { icao: "DEN", lat: 39.86, lon: -104.67 },
-  { icao: "JFK", lat: 40.64, lon: -73.78 }, { icao: "DFW", lat: 32.9, lon: -97.04 },
-  { icao: "SFO", lat: 37.62, lon: -122.38 }, { icao: "ORD", lat: 41.98, lon: -87.9 },
-  { icao: "PVG", lat: 31.14, lon: 121.81 }, { icao: "HKG", lat: 22.31, lon: 113.91 },
-  { icao: "DEL", lat: 28.56, lon: 77.1 }, { icao: "BKK", lat: 13.69, lon: 100.75 },
-  { icao: "MAD", lat: 40.47, lon: -3.56 }, { icao: "GRU", lat: -23.43, lon: -46.47 },
-  { icao: "SYD", lat: -33.95, lon: 151.18 }, { icao: "YYZ", lat: 43.68, lon: -79.61 },
-  { icao: "MEX", lat: 19.44, lon: -99.07 }, { icao: "JNB", lat: -26.13, lon: 28.24 },
-  { icao: "SVO", lat: 55.97, lon: 37.41 }, { icao: "NRT", lat: 35.77, lon: 140.39 },
-  { icao: "KUL", lat: 2.74, lon: 101.71 }, { icao: "BOM", lat: 19.09, lon: 72.87 },
-  { icao: "CGK", lat: -6.13, lon: 106.66 }, { icao: "EZE", lat: -34.82, lon: -58.54 },
-  { icao: "CAI", lat: 30.11, lon: 31.4 }, { icao: "DOH", lat: 25.27, lon: 51.61 },
-  { icao: "SEA", lat: 47.45, lon: -122.31 }, { icao: "MIA", lat: 25.79, lon: -80.29 },
-  { icao: "BCN", lat: 41.3, lon: 2.08 }, { icao: "MUC", lat: 48.35, lon: 11.79 },
-  // 아프리카·남미·오세아니아 (빈 곳 채우기)
-  { icao: "LOS", lat: 6.58, lon: 3.32 }, { icao: "NBO", lat: -1.32, lon: 36.93 },
-  { icao: "ADD", lat: 8.98, lon: 38.8 }, { icao: "CMN", lat: 33.37, lon: -7.59 },
-  { icao: "CPT", lat: -33.97, lon: 18.6 }, { icao: "LAD", lat: -8.86, lon: 13.23 },
-  { icao: "LIM", lat: -12.02, lon: -77.11 }, { icao: "BOG", lat: 4.7, lon: -74.15 },
-  { icao: "SCL", lat: -33.39, lon: -70.79 }, { icao: "AKL", lat: -37.01, lon: 174.79 },
+  // 동아시아 (한국·일본·중국·대만·홍콩)
+  { icao: "ICN", lat: 37.46, lon: 126.44 }, { icao: "GMP", lat: 37.56, lon: 126.79 },
+  { icao: "HND", lat: 35.55, lon: 139.78 }, { icao: "NRT", lat: 35.77, lon: 140.39 },
+  { icao: "KIX", lat: 34.43, lon: 135.24 }, { icao: "CTS", lat: 42.78, lon: 141.69 },
+  { icao: "FUK", lat: 33.59, lon: 130.45 }, { icao: "PEK", lat: 40.08, lon: 116.58 },
+  { icao: "PVG", lat: 31.14, lon: 121.81 }, { icao: "CAN", lat: 23.39, lon: 113.3 },
+  { icao: "SZX", lat: 22.64, lon: 113.81 }, { icao: "CTU", lat: 30.58, lon: 103.95 },
+  { icao: "KMG", lat: 25.1, lon: 102.94 }, { icao: "XIY", lat: 34.45, lon: 108.75 },
+  { icao: "HKG", lat: 22.31, lon: 113.91 }, { icao: "TPE", lat: 25.08, lon: 121.23 },
+  // 동남아·남아시아
+  { icao: "SIN", lat: 1.36, lon: 103.99 }, { icao: "BKK", lat: 13.69, lon: 100.75 },
+  { icao: "KUL", lat: 2.74, lon: 101.71 }, { icao: "CGK", lat: -6.13, lon: 106.66 },
+  { icao: "MNL", lat: 14.51, lon: 121.02 }, { icao: "SGN", lat: 10.82, lon: 106.66 },
+  { icao: "DEL", lat: 28.56, lon: 77.1 }, { icao: "BOM", lat: 19.09, lon: 72.87 },
+  { icao: "BLR", lat: 13.2, lon: 77.71 }, { icao: "HYD", lat: 17.24, lon: 78.43 },
+  // 중동
+  { icao: "DXB", lat: 25.25, lon: 55.36 }, { icao: "DOH", lat: 25.27, lon: 51.61 },
+  { icao: "AUH", lat: 24.43, lon: 54.65 }, { icao: "IST", lat: 41.26, lon: 28.74 },
+  { icao: "JED", lat: 21.68, lon: 39.16 },
+  // 오세아니아
+  { icao: "SYD", lat: -33.95, lon: 151.18 }, { icao: "MEL", lat: -37.67, lon: 144.84 },
+  { icao: "BNE", lat: -27.38, lon: 153.12 }, { icao: "AKL", lat: -37.01, lon: 174.79 },
+  { icao: "PER", lat: -31.94, lon: 115.97 },
+  // 유럽
+  { icao: "LHR", lat: 51.47, lon: -0.46 }, { icao: "CDG", lat: 49.01, lon: 2.55 },
+  { icao: "AMS", lat: 52.31, lon: 4.76 }, { icao: "FRA", lat: 50.03, lon: 8.56 },
+  { icao: "MAD", lat: 40.47, lon: -3.56 }, { icao: "BCN", lat: 41.3, lon: 2.08 },
+  { icao: "MUC", lat: 48.35, lon: 11.79 }, { icao: "FCO", lat: 41.8, lon: 12.25 },
+  { icao: "ZRH", lat: 47.46, lon: 8.55 }, { icao: "CPH", lat: 55.62, lon: 12.65 },
+  { icao: "ARN", lat: 59.65, lon: 17.92 }, { icao: "SVO", lat: 55.97, lon: 37.41 },
+  { icao: "LIS", lat: 38.77, lon: -9.13 }, { icao: "ATH", lat: 37.94, lon: 23.95 },
+  // 북미
+  { icao: "ATL", lat: 33.64, lon: -84.43 }, { icao: "JFK", lat: 40.64, lon: -73.78 },
+  { icao: "LAX", lat: 33.94, lon: -118.41 }, { icao: "ORD", lat: 41.98, lon: -87.9 },
+  { icao: "DFW", lat: 32.9, lon: -97.04 }, { icao: "DEN", lat: 39.86, lon: -104.67 },
+  { icao: "SFO", lat: 37.62, lon: -122.38 }, { icao: "SEA", lat: 47.45, lon: -122.31 },
+  { icao: "MIA", lat: 25.79, lon: -80.29 }, { icao: "YYZ", lat: 43.68, lon: -79.61 },
+  { icao: "MEX", lat: 19.44, lon: -99.07 }, { icao: "YVR", lat: 49.19, lon: -123.18 },
+  // 남미
+  { icao: "GRU", lat: -23.43, lon: -46.47 }, { icao: "EZE", lat: -34.82, lon: -58.54 },
+  { icao: "BOG", lat: 4.7, lon: -74.15 }, { icao: "LIM", lat: -12.02, lon: -77.11 },
+  { icao: "SCL", lat: -33.39, lon: -70.79 }, { icao: "GIG", lat: -22.81, lon: -43.25 },
+  { icao: "PTY", lat: 9.07, lon: -79.38 },
+  // 아프리카
+  { icao: "CAI", lat: 30.11, lon: 31.4 }, { icao: "JNB", lat: -26.13, lon: 28.24 },
+  { icao: "CPT", lat: -33.97, lon: 18.6 }, { icao: "LOS", lat: 6.58, lon: 3.32 },
+  { icao: "NBO", lat: -1.32, lon: 36.93 }, { icao: "ADD", lat: 8.98, lon: 38.8 },
+  { icao: "CMN", lat: 33.37, lon: -7.59 }, { icao: "LAD", lat: -8.86, lon: 13.23 },
+  { icao: "ACC", lat: 5.61, lon: -0.17 }, { icao: "ALG", lat: 36.69, lon: 3.22 },
+  { icao: "DAR", lat: -6.88, lon: 39.2 }, { icao: "TUN", lat: 36.85, lon: 10.23 },
 ];
 
 let tokenCache: { token: string; exp: number } | null = null;

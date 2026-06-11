@@ -377,10 +377,10 @@ export class EmergentNetwork {
       }
     }
 
-    // 호르몬 분비 — 가끔 발화점에서(없으면 임의 노드) release. 확산은 시냅스 루프가 처리
+    // 호르몬(문화) 분비 — 어디서든 무작위로 한 노드에서 release(특정 위치 편향 X).
+    // 확산은 시냅스 루프가 처리 → 노선 타고 멀리 번짐.
     if (hormoneProb > 0 && this.rng() < hormoneProb && this.aliveNodeIdx.length > 0) {
-      const pool = firedThisStep.length > 0 ? firedThisStep : this.aliveNodeIdx;
-      const origin = pool[Math.floor(this.rng() * pool.length)];
+      const origin = this.aliveNodeIdx[Math.floor(this.rng() * this.aliveNodeIdx.length)];
       this.nodes[origin].mod += hormoneRelease;
     }
 

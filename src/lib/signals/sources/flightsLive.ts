@@ -14,17 +14,17 @@ function unit(lat: number, lon: number): [number, number, number] {
   return [-Math.sin(p) * Math.cos(t), Math.cos(p), Math.sin(p) * Math.sin(t)];
 }
 
-const LONG_THRESH = Math.cos(0.3); // 두 공항 dot < 이 값 = 장거리(~17°+)
+const LONG_THRESH = Math.cos(0.32); // 장거리(~18°+) 쌍만 노선
+const ROUTE_LIMIT = 900; // 노선 요청 상한(성능)
 
 /**
  * 실시간 항공 유동인구 (OpenSky) + 장거리 노선(축삭).
- *   · poll: 공항별 근처 비행기 수에 비례해 자극 → 붐비는 공항일수록 큰 군집.
- *   · pollRoutes: '장거리' 공항 쌍을 전부 축삭으로 연결 시도(엔진 maxDeg가 자연 제한).
- *     신호가 그 노선을 타고 대륙을 건넌다 — 진짜 뇌의 long-range 연결.
+ *   · poll: 모든 공항에 기본 시드(존재) + 근처 비행기 수(상한)로 크기 modulation.
+ *     → 아프리카 등 데이터 적은 곳도 작게 뜨고, 인도/미국이 폭주하지 않음(균형).
+ *   · pollRoutes: 장거리 공항 쌍을 축삭으로 연결(엔진 maxDeg가 자연 제한).
  */
 export function createFlightsLiveSource(): SignalSource {
   let airports: Ap[] = [];
-  let maxCount = 1;
 
   return {
     id: "flightslive",
@@ -37,19 +37,18 @@ export function createFlightsLiveSource(): SignalSource {
       if (!res.ok) return;
       const data = await res.json();
       airports = Array.isArray(data?.airports) ? data.airports : [];
-      maxCount = Math.max(1, ...airports.map((a) => a.count));
     },
 
     poll(tick: number): StimulusEvent[] {
       const out: StimulusEvent[] = [];
       for (let i = 0; i < airports.length; i++) {
         const a = airports[i];
-        if (a.count <= 0) continue;
-        if ((tick + i * 5) % 16 === 0) {
+        if ((tick + i * 3) % 14 === 0) {
+          const cap = Math.min(a.count, 35) / 35; // 0..1 (트래픽 상한)
           out.push({
             lat: a.lat,
             lon: a.lon,
-            strength: 0.45 + (a.count / maxCount) * 1.0,
+            strength: 0.5 + cap * 0.6, // 기본 시드 + 상한 트래픽
             radius: 0.07,
           });
         }
@@ -58,7 +57,7 @@ export function createFlightsLiveSource(): SignalSource {
     },
 
     pollRoutes(tick: number): RouteEvent[] {
-      if (tick % 30 !== 0 || airports.length < 2) return [];
+      if (tick % 48 !== 0 || airports.length < 2) return [];
       const u = airports.map((a) => unit(a.lat, a.lon));
       const out: RouteEvent[] = [];
       for (let i = 0; i < airports.length; i++) {
@@ -70,6 +69,7 @@ export function createFlightsLiveSource(): SignalSource {
               latB: airports[j].lat, lonB: airports[j].lon,
               weight: 0.4,
             });
+            if (out.length >= ROUTE_LIMIT) return out;
           }
         }
       }
