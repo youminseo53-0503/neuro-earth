@@ -209,7 +209,7 @@ export const VERSIONS: VizVersion[] = [
   },
   {
     id: "v-genesis-cluster",
-    n: 58,
+    n: 61,
     label: "창세·시나리오 등장 — 아프리카에 뭉쳐 자람",
     config: {
       showEarth: true,
@@ -227,7 +227,7 @@ export const VERSIONS: VizVersion[] = [
   },
   {
     id: "v-mortal",
-    n: 60,
+    n: 63,
     label: "셀데스(노드 수명) — 활동이 옮겨다님",
     config: {
       showEarth: true,
@@ -246,7 +246,7 @@ export const VERSIONS: VizVersion[] = [
   },
   {
     id: "v-genesis-cores",
-    n: 62,
+    n: 65,
     label: "창세 — 육지 거점 번짐 + 8대 문명 앵커 (Out of Africa)",
     config: {
       showEarth: true,
