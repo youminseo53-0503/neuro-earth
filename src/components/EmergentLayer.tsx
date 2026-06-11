@@ -5,11 +5,13 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { EmergentNetwork, type ENode, type ESyn, type EConfig } from "@/lib/emergent";
 import type { VizConfig } from "@/lib/versions";
+import { PandemicDirector, type PandemicHud } from "@/lib/pandemic";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
 import { useUI } from "@/store/useUI";
 import { useMetrics } from "@/store/useMetrics";
+import { usePandemic } from "@/store/usePandemic";
 
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
@@ -82,10 +84,11 @@ function drawNodes(
     }
     const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
     if (config.pandemic) {
-      // SIR — 감염(빨강) / 회복(파랑) / 취약(회색·약하게 활성)
+      // SIR — 감염(빨강) / 회복(파랑) / 취약은 평소 뇌 색 그대로(활발한 세계 위로 빨강이 번짐)
       if (n.inf === 1) color.setRGB(1.0, 0.13, 0.1);
-      else if (n.inf === 2) color.setRGB(0.13, 0.4, 0.9);
-      else color.setRGB(0.38 + act * 0.25, 0.4 + act * 0.25, 0.45 + act * 0.25);
+      else if (n.inf === 2) color.setRGB(0.16, 0.45, 0.95);
+      else if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
+      else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
     } else {
       if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
       else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
@@ -159,6 +162,7 @@ function drawRoutes(
   rCol: Float32Array,
   config: VizConfig,
   earthShown: boolean,
+  pandemicHalt: number | null, // null=평소(청록) / 0..1=팬데믹(감염 노선 빨강, 봉쇄 시 0으로 페이드)
 ) {
   let rc = 0;
   const maxSeg = ROUTE_CAP * (ARC_SEG - 1);
@@ -184,8 +188,26 @@ function drawRoutes(
     let bdot = a.x * b.x + a.y * b.y + a.z * b.z;
     bdot = Math.max(-1, Math.min(1, bdot));
     const bulge = BULGE_MIN + BULGE_SPAN * (Math.acos(bdot) / Math.PI);
-    const tc = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
-    const r = 0.3 * tc, g = 0.8 * tc, bl = 1.0 * tc;
+    const flow = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
+    let r: number, g: number, bl: number;
+    if (pandemicHalt !== null) {
+      // 팬데믹 — 감염된 끝점이 있으면 항공로가 빨갛게(바이러스가 노선을 탐). 봉쇄 시 halt→0로 페이드(비행 멎음).
+      const a2 = nodes[e.i], b2 = nodes[e.j];
+      const infected = a2.inf === 1 || b2.inf === 1;
+      const recovered = !infected && (a2.inf === 2 || b2.inf === 2);
+      if (infected) {
+        const e2 = (0.55 + 0.45 * flow) * pandemicHalt; // 또렷한 빨강
+        r = e2; g = 0.1 * e2; bl = 0.08 * e2;
+      } else if (recovered) {
+        const e2 = flow * pandemicHalt;
+        r = 0.16 * e2; g = 0.45 * e2; bl = 0.95 * e2;
+      } else {
+        const e2 = flow * pandemicHalt;
+        r = 0.2 * e2; g = 0.55 * e2; bl = 0.95 * e2;
+      }
+    } else {
+      r = 0.3 * flow; g = 0.8 * flow; bl = 1.0 * flow;
+    }
     // 점진적 연결: grow(0→1)까지만 그림 — 출발(i)에서 도착(j)으로 아치가 그어짐
     const lastK = config.routeGrow ? Math.max(1, Math.round(e.grow * (ARC_SEG - 1))) : ARC_SEG - 1;
     if (earthShown) {
@@ -227,7 +249,8 @@ export function EmergentLayer() {
   // civAnchors는 생성자 인자가 아니라 매 프레임 읽지만(앵커 심기), 단계 전환 시엔 망을 새로
   // 시작해야 8대 문명이 처음부터 심긴다 → 리빌드 트리거로만 따로 덧붙인다(미러 위험 없음).
   const sig =
-    config.sources.join(",") + "|" + JSON.stringify(netOpts) + "|" + (config.civAnchors ? "C" : "");
+    config.sources.join(",") + "|" + JSON.stringify(netOpts) +
+    "|" + (config.civAnchors ? "C" : "") + (config.pandemicArc ? "X" : "");
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork(netOpts);
     const sources = makeSources(config.sources);
@@ -263,6 +286,14 @@ export function EmergentLayer() {
   const frameRef = useRef(0);
   const prevSyn = useRef(0);
   const lastNet = useRef<EmergentNetwork | null>(null);
+  const director = useRef(new PandemicDirector());
+  const setPandemic = usePandemic((s) => s.set);
+
+  // 팬데믹 '멸종' 시네마틱이 아닐 땐 하단 자막 숨김
+  useEffect(() => {
+    if (!config.pandemicArc) setPandemic({ active: false });
+    return () => setPandemic({ active: false });
+  }, [config.pandemicArc, setPandemic]);
 
   // 외부 데이터 refresh
   useEffect(() => {
@@ -296,12 +327,18 @@ export function EmergentLayer() {
       sm.instanceMatrix.needsUpdate = true;
       lastNet.current = net;
       prevSyn.current = 0;
+      director.current.reset(); // 새 망 → 시네마틱도 처음부터
     }
 
     const tick = tickRef.current++;
 
+    // 팬데믹 '멸종' 시네마틱 — 엔진을 직접 연출(씨앗·전염률·전부감염·동결)하고 자막/halt 산출
+    let arc: PandemicHud | null = null;
+    if (config.pandemicArc) arc = director.current.update(net);
+
     for (const src of sources) {
       if (!src.enabled) continue;
+      if (arc && !arc.injecting) break; // 대봉쇄 — 자극·항공 주입 중단
       src.observe?.(net.metrics.nodes); // 현재 규모를 소스에 알림(문명사: 비행기=N 기준)
       for (const ev of src.poll(tick)) net.injectStimulus(ev.lat, ev.lon, ev.strength);
       if (src.pollRoutes) {
@@ -316,10 +353,15 @@ export function EmergentLayer() {
 
     // 세 패스(노드·시냅스·노선)는 순수 헬퍼로 분리 — useFrame은 폴링→step→그리기만.
     // 공유 스크래치(color/dummy/dir)와 prevSyn ref를 넘겨 프레임당 할당 0 유지.
+    // 팬데믹이면 노선도 감염 따라 빨강(봉쇄 시 halt로 페이드). 비팬데믹은 null=평소 청록.
+    const phalt = config.pandemic ? (arc ? arc.halt : 1) : null;
     drawNodes(mesh, net.nodes, config, NODE_LV, color, dummy);
     drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir);
-    drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown);
+    drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt);
 
+    if (arc && frameRef.current % 6 === 0) {
+      setPandemic({ active: true, phase: arc.phase, dateLabel: arc.dateLabel, caption: arc.caption, infectedPct: arc.infectedPct });
+    }
     if (frameRef.current++ % 12 === 0) setE(net.metrics);
   });
 

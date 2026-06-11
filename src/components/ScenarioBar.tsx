@@ -1,6 +1,7 @@
 "use client";
 
 import { MODES, modeById } from "@/lib/scenarios";
+import { isPandemicVersion } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
 
 /**
@@ -11,9 +12,11 @@ import { useViz } from "@/store/useViz";
  */
 export function ScenarioBar() {
   const mode = useViz((s) => s.mode);
+  const versionId = useViz((s) => s.versionId);
   const setMode = useViz((s) => s.setMode);
 
-  const activeMode = mode; // 현재 모드(실시간/창세/팬데믹)
+  // 팬데믹은 별도 버전 라인 → 그 버전을 보는 중이면 하단 바도 '팬데믹' 활성
+  const activeMode = isPandemicVersion(versionId) ? "pandemic" : mode;
   const activeInfo = modeById(activeMode);
 
   return (

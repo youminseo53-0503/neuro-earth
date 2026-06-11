@@ -5,6 +5,7 @@ import { PromptFeed } from "@/components/PromptFeed";
 import { HUD } from "@/components/HUD";
 import { VersionRemote } from "@/components/VersionRemote";
 import { ScenarioBar } from "@/components/ScenarioBar";
+import { PandemicCaption } from "@/components/PandemicCaption";
 import { useViz } from "@/store/useViz";
 
 // R3F Canvas는 브라우저 전용 → SSR 끄고 클라이언트에서만 로드
@@ -25,6 +26,7 @@ export default function Home() {
         {isOrigin && <OriginPlaceholder />}
         <HUD />
         <VersionRemote />
+        <PandemicCaption />
         <ScenarioBar />
       </section>
 

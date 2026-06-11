@@ -56,6 +56,8 @@ export interface VizConfig {
   areaCap?: boolean;
   /** 팬데믹 — SIR 전염 파동(확산성 탈분극). 우한 시작, 노선 타고 번짐(빨강=감염/파랑=회복) */
   pandemic?: boolean;
+  /** 팬데믹 '멸종' 시네마틱 — 실제 코로나 타임라인(2019.12→2021): 활발→삽시간 빨강→대봉쇄 정지 + 날짜 자막 */
+  pandemicArc?: boolean;
   /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
   lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
@@ -108,8 +110,9 @@ function genCiv(extra: Partial<VizConfig> = {}): VizConfig {
   return { ...EM_BASE, sources: ["genesisciv"], routeGrow: true, ...extra };
 }
 
-// 팬데믹 — 실시간 망 위 SIR 전염 파동. '버전'이 아니라 하단 바의 독립 '모드'(실시간/창세와 나뉨).
-export const PANDEMIC_CONFIG: VizConfig = live({
+// 팬데믹 — 실시간/창세와 직각인 '독립 버전 라인'. 리모컨에서 따로 분리(25 초기 · 26 멸종).
+// 단일 config(모드 분기 없음) → 실시간/창세 양쪽에 새지 않는다.
+const PANDEMIC_BASE: VizConfig = live({
   mortal: true,
   lifespan: 900,
   softCap: 6500,
@@ -308,9 +311,35 @@ export const VERSIONS: VizVersion[] = [
       }),
     },
   },
+
+  // ── 팬데믹 라인(실시간/창세와 분리된 독립 버전) — 단일 config ──
+  {
+    id: "p-basic",
+    n: 75,
+    label: "팬데믹 — 초기 (SIR 전염 파동·우한발)",
+    config: PANDEMIC_BASE,
+  },
+  {
+    id: "p-extinct",
+    n: 77,
+    label: "팬데믹 — 대봉쇄·멸종 (2019.12→2021)",
+    config: { ...PANDEMIC_BASE, pandemicArc: true },
+  },
 ];
 
-export const LATEST: VizVersion = VERSIONS[VERSIONS.length - 1];
+// 기본 진입점 = 마지막 '단계(staged)' 버전(s-civarea). 팬데믹은 별도 라인이라 기본값으로 안 잡음.
+export const LATEST: VizVersion =
+  [...VERSIONS].reverse().find((v) => v.modes) ?? VERSIONS[VERSIONS.length - 1];
+
+/** 팬데믹 라인의 최신 버전(하단 바 '팬데믹' 버튼이 여기로 점프) */
+export const LATEST_PANDEMIC: VizVersion | undefined =
+  [...VERSIONS].reverse().find((v) => v.config?.pandemic);
+
+/** 이 버전이 팬데믹 라인인지(하단 바 활성·HUD 배지 판정) */
+export function isPandemicVersion(id: string): boolean {
+  const v = VERSIONS.find((x) => x.id === id);
+  return !!v?.config?.pandemic;
+}
 
 /** 버전 + 모드 → 실제 config. 옛 버전은 모드 무관 단일 config. */
 export function configFor(v: VizVersion, mode: ViewMode): VizConfig {

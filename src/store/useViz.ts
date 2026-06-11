@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { LATEST, VERSIONS, configFor, PANDEMIC_CONFIG, type VizConfig } from "@/lib/versions";
+import { LATEST, LATEST_PANDEMIC, VERSIONS, configFor, type VizConfig } from "@/lib/versions";
 
-/** 하단 바 모드(보는 방식). live/genesis는 버전(단계)별, pandemic은 독립 경험. */
+/** 하단 바 모드(보는 방식). live/genesis는 단계별, pandemic은 별도 버전 라인(25 초기·26 멸종). */
 type ModeId = "live" | "genesis" | "pandemic" | "recovery";
 
 interface VizState {
@@ -31,8 +31,8 @@ export const useViz = create<VizState>((set, get) => ({
   },
   setMode: (mode) => {
     if (mode === "pandemic") {
-      // 팬데믹 = 독립 모드(실시간 망 위 SIR 파동). 버전 강조 해제.
-      set({ config: PANDEMIC_CONFIG, mode: "pandemic", versionId: "" });
+      // 팬데믹 = 별도 버전 라인. 최신 팬데믹 버전(멸종)으로 점프(리모컨에서 25 초기도 선택 가능).
+      if (LATEST_PANDEMIC) get().setVersion(LATEST_PANDEMIC.id);
       return;
     }
     if (mode !== "live" && mode !== "genesis") return; // 회복은 준비 중

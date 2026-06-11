@@ -174,6 +174,7 @@ export class EmergentNetwork {
   nodes: ENode[];
   syns: ESyn[];
   tick = 0;
+  frozen = false; // 대봉쇄 — true면 활동·발화·생멸 정지(팬데믹 멸종 클라이맥스). 활동만 사그라들고 그 자리에 언다
   metrics: EMetrics = { tick: 0, nodes: 0, synapses: 0, firing: 0, births: 0, deaths: 0, hormone: 0 };
 
   private rng: () => number;
@@ -410,6 +411,7 @@ export class EmergentNetwork {
     // 살아있는 노드 목록 갱신(이 틱 내내 쓰는 스냅샷)
     this.aliveNodeIdx.length = 0;
     for (let i = 0; i < this.nodes.length; i++) if (this.nodes[i].alive) this.aliveNodeIdx.push(i);
+    if (this.frozen) { this.freezeStep(); return; } // 대봉쇄 — 모든 활동 정지(아래 단계 건너뜀)
     if (this.cfg.homeoRate > 0) this.inSum.fill(0);
 
     const input = new Map<number, number>();
@@ -633,5 +635,36 @@ export class EmergentNetwork {
     }
     // 씨앗 — 감염자 0이면 우한에서 새 파동(변이)
     if (infected === 0 && this.aliveNodeIdx.length > 20) this.seedInfection(30.6, 114.3);
+  }
+
+  /** 대봉쇄 — 모든 활동이 멈춘 정지 상태. 발화·생멸 없이 활동만 사그라들고 노드는 그 자리에 언다. */
+  private freezeStep() {
+    for (let k = 0; k < this.aliveNodeIdx.length; k++) {
+      const nd = this.nodes[this.aliveNodeIdx[k]];
+      nd.fired = false;
+      nd.a *= 0.82; // 활동 빠르게 사그라듦(거리 텅 빔)
+      nd.flash *= 0.82;
+      nd.inj = 0;
+    }
+    for (let s = 0; s < this.syns.length; s++) {
+      const e = this.syns[s];
+      if (e.alive) e.act *= 0.82; // 신호 흐름 멎음(노선 펄스 꺼짐 → 비행 정지)
+    }
+    this.tick++;
+    let nodeCount = 0, synCount = 0, modSum = 0;
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (this.nodes[i].alive) { nodeCount++; modSum += this.nodes[i].mod; }
+    }
+    for (let s = 0; s < this.syns.length; s++) if (this.syns[s].alive) synCount++;
+    this.metrics = { tick: this.tick, nodes: nodeCount, synapses: synCount, firing: 0, births: 0, deaths: 0, hormone: modSum };
+    this.bornCount = 0;
+  }
+
+  /** 클라이맥스 — 살아있는 모든 노드를 감염(I)으로(삽시간에 전부 빨강). */
+  infectAll() {
+    for (let i = 0; i < this.nodes.length; i++) {
+      const n = this.nodes[i];
+      if (n.alive && n.inf !== 1) { n.inf = 1; n.infT = 1; }
+    }
   }
 }

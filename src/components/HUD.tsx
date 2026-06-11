@@ -2,7 +2,7 @@
 
 import { useMetrics } from "@/store/useMetrics";
 import { useViz } from "@/store/useViz";
-import { VERSIONS } from "@/lib/versions";
+import { VERSIONS, isPandemicVersion } from "@/lib/versions";
 import { modeById } from "@/lib/scenarios";
 
 /** 왼쪽 씬 위에 떠 있는 실시간 측정 readout. */
@@ -13,7 +13,8 @@ export function HUD() {
   const versionId = useViz((s) => s.versionId);
   const mode = useViz((s) => s.mode);
   const version = VERSIONS.find((v) => v.id === versionId);
-  const modeInfo = modeById(mode); // 실시간/창세/팬데믹
+  const activeMode = isPandemicVersion(versionId) ? "pandemic" : mode;
+  const modeInfo = modeById(activeMode); // 실시간/창세/팬데믹
 
   return (
     <div className="pointer-events-none absolute left-4 top-4 select-none font-mono text-[11px] leading-relaxed">
