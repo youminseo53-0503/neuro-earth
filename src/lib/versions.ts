@@ -38,6 +38,8 @@ export interface VizConfig {
   smallNodes?: boolean;
   /** 노드 절대 수명(턴오버) — 활성이어도 나이 들면 죽어 슬롯이 풀림. 활동이 옮겨다니고 정적이지 않게 */
   mortal?: boolean;
+  /** emergent 노드 슬롯 상한(밀도). 안 주면 기본 1200. 실시간·창세는 높여 더 빽빽하게 */
+  maxNodes?: number;
 }
 
 export interface VizVersion {
@@ -65,6 +67,7 @@ export const LIVE_CONFIG: VizConfig = {
   gridWave: true,
   smallNodes: true,
   mortal: true,
+  maxNodes: 6000,
 };
 // 창세 — 육지 거점 번짐 + 8대 문명 앵커.
 export const GENESIS_CONFIG: VizConfig = {
@@ -80,6 +83,7 @@ export const GENESIS_CONFIG: VizConfig = {
   homeo: true,
   smallNodes: true,
   mortal: true,
+  maxNodes: 6000,
 };
 
 export const VERSIONS: VizVersion[] = [

@@ -12,7 +12,7 @@ import { useMetrics } from "@/store/useMetrics";
 
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
-const SYN_CAP = 7000;
+const SYN_CAP = 12000; // 시냅스 실린더 렌더 상한(노드 6000까지 커버)
 const NODE_LV_BIG = [0.3, 0.55, 0.9, 1.35, 1.9]; // 옛 버전 — 큰 공(명확히 구분)
 const NODE_LV_SMALL = [0.2, 0.34, 0.5, 0.68, 0.9]; // '줄여!' 이후 버전 — 작은 공(선이 주인공)
 const THICK_BASE = 0.0033; // 선 굵기 기준(한 단계 얇게)
@@ -51,7 +51,8 @@ export function EmergentLayer() {
     (config.hormone ? "h" : "") +
     (config.fatigue ? "f" : "") +
     (config.homeo ? "o" : "") +
-    (config.mortal ? "m" : "");
+    (config.mortal ? "m" : "") +
+    "|" + (config.maxNodes ?? 1200);
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork({
       spontaneous: config.intrinsic ? 0.01 : 0,
@@ -59,6 +60,8 @@ export function EmergentLayer() {
       fatigueGain: config.fatigue ? 0.18 : 0,
       homeoRate: config.homeo ? 0.03 : 0,
       maxAge: config.mortal ? 1500 : 0, // 절대 수명(틱) — 활성이어도 나이 들면 죽어 턴오버
+      maxNodes: config.maxNodes ?? 1200, // 노드 슬롯 상한(밀도). 옛 버전 1200, 실시간·창세 6000
+      maxSyn: config.maxNodes ? Math.max(7000, config.maxNodes * 2) : 7000,
       // 창세(이상적)는 수상돌기 집중을 낮춰 거점들이 고르게 번지게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.
       ...(config.sources.includes("genesis") ? { growthProb: 0.05 } : {}),
     });
