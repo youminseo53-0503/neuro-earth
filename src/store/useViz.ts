@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { LATEST, VERSIONS, type VizConfig } from "@/lib/versions";
+import { VERSIONS, type VizConfig } from "@/lib/versions";
 import { SCENARIOS, DEFAULT_SCENARIO } from "@/lib/scenarios";
 
 interface VizState {
@@ -14,7 +14,7 @@ interface VizState {
 /** 현재 보고 있는 시각 상태. 시나리오 바(프리셋) + 버전 리모컨(과거 탐색)이 바꾼다. */
 export const useViz = create<VizState>((set) => ({
   config: DEFAULT_SCENARIO.config,
-  versionId: LATEST.id,
+  versionId: "", // 시나리오로 시작 → 버전 하이라이트는 비움(리모컨이 엉뚱한 버전 켜는 것 방지)
   scenarioId: DEFAULT_SCENARIO.id,
   setVersion: (id) => {
     const v = VERSIONS.find((x) => x.id === id);
