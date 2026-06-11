@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { VERSIONS, type VizVersion } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
+import { useExhibition } from "@/store/useExhibition";
 
 /**
  * 버전 리모컨 — 좌측 가장자리 탭. 기본은 접힘(작은 탭),
@@ -19,6 +20,7 @@ export function VersionRemote() {
   const curIdx = current ? VERSIONS.indexOf(current) : -1;
 
   const select = (v: VizVersion) => {
+    useExhibition.getState().setAuto(false); // 직접 버전 선택 → 자동순환 중단
     setVersion(v.id);
     document
       .getElementById(`feed-${v.n}`)

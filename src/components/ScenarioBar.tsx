@@ -3,6 +3,7 @@
 import { MODES, modeById } from "@/lib/scenarios";
 import { isPandemicVersion } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
+import { useExhibition } from "@/store/useExhibition";
 
 /**
  * 하단 중앙 모드 바 — 실시간 / 창세 / 팬데믹 / 회복.
@@ -14,10 +15,18 @@ export function ScenarioBar() {
   const mode = useViz((s) => s.mode);
   const versionId = useViz((s) => s.versionId);
   const setMode = useViz((s) => s.setMode);
+  const auto = useExhibition((s) => s.auto);
+  const toggleAuto = useExhibition((s) => s.toggle);
 
   // 팬데믹은 별도 버전 라인 → 그 버전을 보는 중이면 하단 바도 '팬데믹' 활성
   const activeMode = isPandemicVersion(versionId) ? "pandemic" : mode;
   const activeInfo = modeById(activeMode);
+
+  // 사용자가 직접 모드를 누르면 자동순환 중단(자유 탐색)
+  const pick = (id: string) => {
+    useExhibition.getState().setAuto(false);
+    setMode(id);
+  };
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 select-none">
@@ -37,6 +46,18 @@ export function ScenarioBar() {
       )}
 
       <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-panel-border bg-black/70 p-1 backdrop-blur-sm">
+        {/* 자동순환 토글 — 켜면 시나리오를 스스로 왔다갔다(전시 모드) */}
+        <button
+          onClick={toggleAuto}
+          title="자동순환(전시 모드) — 실시간→창세→팬데믹을 스스로 넘김"
+          className={`mr-0.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
+            auto
+              ? "bg-neon-cyan/15 text-neon-cyan ring-1 ring-neon-cyan/40"
+              : "text-white/45 hover:bg-white/5 hover:text-neon-cyan"
+          }`}
+        >
+          🔁 자동
+        </button>
         {MODES.map((m) => {
           const on = m.id === activeMode;
           const soon = m.status === "soon";
@@ -44,7 +65,7 @@ export function ScenarioBar() {
             <button
               key={m.id}
               disabled={soon}
-              onClick={() => setMode(m.id)}
+              onClick={() => pick(m.id)}
               title={m.blurb}
               className={`relative rounded-full px-4 py-1.5 text-[12px] font-medium transition ${
                 on

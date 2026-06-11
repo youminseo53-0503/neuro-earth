@@ -23,27 +23,27 @@ export function BriefingPanel() {
   const b = BRIEFINGS[key];
 
   return (
-    <div className="pointer-events-none absolute bottom-4 right-4 z-20 w-[340px] max-w-[42vw] select-none">
+    <div className="pointer-events-none absolute bottom-4 right-4 z-20 w-[clamp(340px,24vw,480px)] max-w-[44vw] select-none">
       <div className="pointer-events-auto overflow-hidden rounded-lg border border-neon-cyan/25 bg-black/70 backdrop-blur-sm">
         {/* 헤더 */}
         <button
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center gap-2 border-b border-white/10 bg-neon-cyan/5 px-3 py-2 text-left transition hover:bg-neon-cyan/10"
         >
-          <span className="rounded bg-neon-cyan/15 px-1.5 py-px font-mono text-[9px] tracking-wider text-neon-cyan">
+          <span className="rounded bg-neon-cyan/15 px-1.5 py-px font-mono text-[clamp(9px,0.6vw,12px)] tracking-wider text-neon-cyan">
             BRIEFING
           </span>
-          <span className="text-[12px] font-bold text-white/85">{b.title}</span>
-          <span className="ml-auto text-[11px] text-white/35">{open ? "▾" : "▸"}</span>
+          <span className="text-[clamp(13px,0.95vw,19px)] font-bold text-white/85">{b.title}</span>
+          <span className="ml-auto text-[clamp(11px,0.8vw,15px)] text-white/35">{open ? "▾" : "▸"}</span>
         </button>
 
         {open && (
           <div className="px-3.5 py-3">
-            <div className="mb-2 flex items-start gap-1.5 text-[10px] leading-snug text-neon-cyan/70">
+            <div className="mb-2 flex items-start gap-1.5 text-[clamp(11px,0.78vw,15px)] leading-snug text-neon-cyan/70">
               <span className="mt-px shrink-0">🧠</span>
               <span className="italic">{b.brain}</span>
             </div>
-            <p className="whitespace-pre-line text-[11.5px] leading-relaxed text-white/65">
+            <p className="whitespace-pre-line text-[clamp(12.5px,0.92vw,18px)] leading-relaxed text-white/70">
               {b.body}
             </p>
           </div>

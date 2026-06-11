@@ -12,6 +12,7 @@ import { useViz } from "@/store/useViz";
 import { useUI, BASE_SPIN } from "@/store/useUI";
 import { useMetrics } from "@/store/useMetrics";
 import { usePandemic } from "@/store/usePandemic";
+import { useExhibition } from "@/store/useExhibition";
 
 const GENESIS_SOURCES = ["genesis", "genesisciv", "local"]; // 창세 계열 소스
 const GENESIS_CLIMAX_N = 5000; // 창세가 '다 자란' 최고조(비행기 폭발기 이후)
@@ -385,13 +386,20 @@ export function EmergentLayer() {
     drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt);
 
     // 클라이맥스 — 팬데믹 대봉쇄 OR 창세가 다 자람 → 지구 자동 끄기 + 회전 점점 빠르게
-    const genesisGrown =
-      config.sources.some((s) => GENESIS_SOURCES.includes(s)) && net.metrics.nodes >= GENESIS_CLIMAX_N;
+    const genesisScenario = config.sources.some((s) => GENESIS_SOURCES.includes(s));
+    const genesisGrown = genesisScenario && net.metrics.nodes >= GENESIS_CLIMAX_N;
     const climax = (arc?.climax ?? false) || genesisGrown;
     const ui = useUI.getState();
     ui.setSpin(THREE.MathUtils.lerp(ui.spin, climax ? 1.4 : BASE_SPIN, 0.02));
-    // 카메라 돌리 — 팬데믹은 단계별 연출, 창세 클라이맥스는 pull-back, 그 외엔 0(사용자 자유)
-    ui.setCamDist(arc ? arc.camDist : genesisGrown ? 8.6 : 0);
+    // 카메라 — 팬데믹은 항상 단계별 스크립트 연출 / 라이브·창세는 자동순환 모드일 때만 무빙
+    let camDist = 0;
+    if (arc) camDist = arc.camDist;
+    else if (useExhibition.getState().auto) {
+      camDist = genesisScenario
+        ? 4.6 + Math.min(1, net.metrics.nodes / 6000) * 4.4 // 창세: 자랄수록 줌아웃(4.6→9)
+        : 6 + Math.sin(frameRef.current * 0.0016) * 0.8;     // 라이브: 느린 호흡(push-in/pull-back)
+    }
+    ui.setCamDist(camDist);
     // 지구 끄기/켜기는 '엣지에서 1회성'으로만 — 그 사이엔 사용자의 '지구 켜기' 버튼이 이긴다.
     if (climax !== prevClimax.current) {
       ui.setEarthVisible(!climax); // 진입 → 자동 끔 / 해제 → 다시 켬

@@ -13,7 +13,7 @@ export function PromptFeed() {
       {/* 헤더 */}
       <header className="flex items-center justify-between gap-2 border-b border-panel-border px-4 py-3">
         <div className="min-w-0">
-          <h1 className="truncate font-mono text-sm font-bold tracking-tight text-white">
+          <h1 className="truncate font-mono text-[clamp(14px,1.05vw,22px)] font-bold tracking-tight text-white">
             NEURO·EARTH <span className="text-neon-cyan">개발 로그</span>
           </h1>
           <p className="truncate text-[11px] text-white/40">
@@ -25,7 +25,7 @@ export function PromptFeed() {
         </div>
         <button
           onClick={toggleEarth}
-          className="shrink-0 rounded-lg border border-panel-border px-2.5 py-1.5 text-[11px] font-semibold text-white/70 transition hover:border-neon-cyan/50 hover:text-neon-cyan"
+          className="shrink-0 rounded-lg border border-panel-border px-2.5 py-1.5 text-[clamp(11px,0.8vw,16px)] font-semibold text-white/70 transition hover:border-neon-cyan/50 hover:text-neon-cyan"
         >
           {earthVisible ? "지구 끄기" : "지구 켜기"}
         </button>

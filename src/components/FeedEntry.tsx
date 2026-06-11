@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { TimelineMessage } from "@/data/timeline";
 import { versionForEntry } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
+import { useExhibition } from "@/store/useExhibition";
 
 const PREVIEW_LEN = 110;
 
@@ -29,7 +30,7 @@ export function FeedEntry({
   if (msg.kind === "choice") {
     return (
       <div className="flex w-full flex-col items-end gap-1">
-        <div className="flex flex-row-reverse items-center gap-2 px-1 text-[11px] tracking-wide">
+        <div className="flex flex-row-reverse items-center gap-2 px-1 text-[clamp(11px,0.8vw,15px)] tracking-wide">
           {firstOfBundle && (
             <span className="font-mono font-semibold" style={{ color: "var(--minseo)" }}>
               #{String(msg.n).padStart(2, "0")}
@@ -41,7 +42,7 @@ export function FeedEntry({
           </span>
         </div>
         <div className="max-w-[88%] rounded-2xl rounded-tr-sm bg-[#3a3420] px-3.5 py-2.5 ring-1 ring-amber-400/25">
-          <div className="mb-2 text-[12px] text-amber-100/70">{msg.text}</div>
+          <div className="mb-2 text-[clamp(12px,0.9vw,18px)] text-amber-100/70">{msg.text}</div>
           <div className="flex flex-col gap-1">
             {msg.options?.map((o) => {
               // 정확히 일치 OR 커스텀 답이 이 옵션을 품고 있으면 선택으로 본다(부분 채택)
@@ -49,7 +50,7 @@ export function FeedEntry({
               return (
                 <div
                   key={o}
-                  className={`rounded px-2 py-1 text-[12px] ${
+                  className={`rounded px-2 py-1 text-[clamp(12px,0.9vw,18px)] ${
                     sel
                       ? "bg-neon-green/15 text-neon-green ring-1 ring-neon-green/40"
                       : "text-white/30"
@@ -62,7 +63,7 @@ export function FeedEntry({
             })}
             {/* 보기에 없는 '직접 입력(other)' 답 — 선택 안 한 것처럼 사라지지 않게 또렷이 */}
             {msg.chosen && !msg.options?.includes(msg.chosen) && (
-              <div className="mt-0.5 rounded px-2 py-1 text-[12px] bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/45">
+              <div className="mt-0.5 rounded px-2 py-1 text-[clamp(12px,0.9vw,18px)] bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/45">
                 ✎ 직접 적음 — {msg.chosen}
               </div>
             )}
@@ -80,7 +81,7 @@ export function FeedEntry({
       }`}
     >
       <div
-        className={`flex items-center gap-2 px-1 text-[11px] tracking-wide ${
+        className={`flex items-center gap-2 px-1 text-[clamp(11px,0.8vw,15px)] tracking-wide ${
           isMinseo ? "flex-row-reverse" : ""
         }`}
       >
@@ -98,7 +99,7 @@ export function FeedEntry({
       </div>
 
       <div
-        className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+        className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-[clamp(13px,0.95vw,19px)] leading-relaxed shadow-sm ${
           isMinseo
             ? "rounded-tr-sm bg-[#3a3420] text-amber-50 ring-1 ring-amber-400/25"
             : "rounded-tl-sm bg-panel text-foreground/90 ring-1 ring-panel-border"
@@ -108,7 +109,7 @@ export function FeedEntry({
         {collapsible && (
           <button
             onClick={() => setOpen((v) => !v)}
-            className={`mt-1.5 text-[11px] font-semibold ${
+            className={`mt-1.5 text-[clamp(11px,0.8vw,15px)] font-semibold ${
               isMinseo ? "text-amber-300/80" : "text-neon-cyan/80"
             } hover:underline`}
           >
@@ -119,8 +120,11 @@ export function FeedEntry({
 
       {version && (
         <button
-          onClick={() => setVersion(version.id)}
-          className={`mt-0.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition ${
+          onClick={() => {
+            useExhibition.getState().setAuto(false);
+            setVersion(version.id);
+          }}
+          className={`mt-0.5 rounded-md border px-2.5 py-1 text-[clamp(11px,0.8vw,15px)] font-semibold transition ${
             activeId === version.id
               ? "border-neon-green/60 bg-neon-green/10 text-neon-green"
               : "border-panel-border text-white/60 hover:border-neon-cyan/50 hover:text-neon-cyan"

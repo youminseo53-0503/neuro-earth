@@ -17,12 +17,12 @@ export function PandemicCaption() {
   return (
     <div className="pointer-events-none absolute bottom-20 left-1/2 z-20 -translate-x-1/2 select-none text-center">
       <div
-        className="font-mono text-5xl font-bold tracking-[0.18em] text-white/95"
+        className="font-mono text-[clamp(44px,3.4vw,80px)] font-bold tracking-[0.18em] text-white/95"
         style={{ textShadow: "0 2px 24px rgba(255,40,40,0.55), 0 0 2px rgba(0,0,0,0.8)" }}
       >
         {dateLabel}
       </div>
-      <div className="mt-2 text-base font-medium tracking-wide text-white/80">{caption}</div>
+      <div className="mt-2 text-[clamp(15px,1.25vw,26px)] font-medium tracking-wide text-white/80">{caption}</div>
 
       {/* 감염률 바 */}
       <div className="mx-auto mt-3 flex w-64 items-center gap-2">
