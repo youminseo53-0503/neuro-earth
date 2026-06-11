@@ -186,7 +186,7 @@ export const VERSIONS: VizVersion[] = [
   {
     id: "v-dual",
     n: 45,
-    label: "이중 신경계 — 항공(이동) + 시장 파동(여론)",
+    label: "이중 신경계 — 항공(이동) + 인터넷 정보 파동",
     config: {
       showEarth: true,
       showNet: true,
