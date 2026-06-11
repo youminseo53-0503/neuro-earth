@@ -86,6 +86,7 @@ export function EmergentLayer() {
   const tickRef = useRef(0);
   const frameRef = useRef(0);
   const prevSyn = useRef(0);
+  const lastNet = useRef<EmergentNetwork | null>(null);
 
   // 외부 데이터 refresh
   useEffect(() => {
@@ -105,22 +106,22 @@ export function EmergentLayer() {
     };
   }, [sources]);
 
-  // 시냅스 인스턴스 초기 숨김
-  useEffect(() => {
-    const m = synRef.current;
-    if (!m) return;
-    dummy.scale.setScalar(0);
-    dummy.position.set(0, 0, 0);
-    dummy.updateMatrix();
-    for (let k = 0; k < SYN_CAP; k++) m.setMatrixAt(k, dummy.matrix);
-    m.instanceMatrix.needsUpdate = true;
-    prevSyn.current = 0;
-  }, [dummy]);
-
   useFrame(() => {
     const mesh = nodesRef.current;
     const sm = synRef.current;
     if (!mesh || !sm) return;
+
+    // 첫 프레임 / 버전 전환 시 모든 시냅스 인스턴스 확실히 숨김(원점 흰 원기둥 버그 방지)
+    if (lastNet.current !== net) {
+      dummy.scale.setScalar(0);
+      dummy.position.set(0, 0, 0);
+      dummy.updateMatrix();
+      for (let k = 0; k < SYN_CAP; k++) sm.setMatrixAt(k, dummy.matrix);
+      sm.instanceMatrix.needsUpdate = true;
+      lastNet.current = net;
+      prevSyn.current = 0;
+    }
+
     const tick = tickRef.current++;
 
     for (const src of sources) {
