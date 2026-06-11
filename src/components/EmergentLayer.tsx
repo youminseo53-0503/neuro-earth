@@ -59,8 +59,8 @@ export function EmergentLayer() {
       fatigueGain: config.fatigue ? 0.18 : 0,
       homeoRate: config.homeo ? 0.03 : 0,
       maxAge: config.mortal ? 1500 : 0, // 절대 수명(틱) — 활성이어도 나이 들면 죽어 턴오버
-      // 창세(이상적)는 수상돌기 집중을 낮춰 전 지구 고르게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.
-      ...(config.sources.includes("genesis") ? { growthProb: 0.03 } : {}),
+      // 창세(이상적)는 수상돌기 집중을 낮춰 거점들이 고르게 번지게. 실시간은 붐비는 곳이 빽빽한 게 맞으니 그대로.
+      ...(config.sources.includes("genesis") ? { growthProb: 0.05 } : {}),
     });
     const sources = makeSources(config.sources);
 
@@ -139,6 +139,9 @@ export function EmergentLayer() {
         for (const rt of src.pollRoutes(tick))
           net.injectRoute(rt.latA, rt.lonA, rt.latB, rt.lonB, rt.weight);
       }
+      if (src.pollAnchors) {
+        for (const a of src.pollAnchors(tick)) net.birthAnchor(a.lat, a.lon); // 8대 문명 영속 앵커
+      }
     }
     net.step();
     const nodes = net.nodes;
@@ -158,10 +161,11 @@ export function EmergentLayer() {
       if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
       else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
       if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2));
+      if (n.immortal) color.setRGB(1.0, 0.9, 0.5); // 8대 문명 영속 앵커 — 황금빛
       mesh.setColorAt(i, color);
       const lvi = Math.min(4, Math.floor(n.vitality / 0.32));
       dummy.position.set(n.x * SURF, n.y * SURF, n.z * SURF);
-      dummy.scale.setScalar(NODE_LV[lvi]);
+      dummy.scale.setScalar(n.immortal ? NODE_LV[4] * 1.4 : NODE_LV[lvi]);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }

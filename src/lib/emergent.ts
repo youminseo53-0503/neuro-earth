@@ -54,6 +54,7 @@ export interface ENode {
   fatigue: number; // 피로(사회=식상함) — 과발화 시 쌓여 임계 ↑(쉬게 됨), 천천히 회복
   born: number; // 태어난 tick (절대 수명 계산용)
   maxAge: number; // 절대 수명(0=불멸). 활동과 무관하게 이 나이 넘으면 죽음 → 턴오버
+  immortal: boolean; // 우연히 태어난 불멸 노드 — 나이·비활성으로도 안 죽음(영속 앵커)
 }
 
 export interface ESyn {
@@ -182,7 +183,7 @@ export class EmergentNetwork {
     return {
       alive: false, x: 0, y: 0, z: 0, lat: 0, lon: 0, a: 0, inj: 0, vitality: 0,
       type: 1, threshold: 0.55, refrac: 0, fired: false, flash: 0, lastActive: 0, deg: 0,
-      mod: 0, fatigue: 0, born: 0, maxAge: 0,
+      mod: 0, fatigue: 0, born: 0, maxAge: 0, immortal: false,
     };
   }
 
@@ -216,6 +217,7 @@ export class EmergentNetwork {
     n.refrac = 0; n.fired = false; n.flash = 0;
     n.lastActive = this.tick; n.deg = 0;
     n.born = this.tick;
+    n.immortal = false;
     // 절대 수명 — 개체마다 다르게(0.6~1.4×) 흩어 한꺼번에 안 죽게(자연스러운 턴오버)
     n.maxAge = this.cfg.maxAge > 0 ? this.cfg.maxAge * (0.6 + this.rng() * 0.8) : 0;
     this.bornCount++;
@@ -272,6 +274,42 @@ export class EmergentNetwork {
     this.nodes[e.j].deg--;
     this.edges.delete(this.ekey(e.i, e.j));
     this.freeSyns.push(s);
+  }
+
+  /** 8대 문명 등 '영속 앵커'를 특정 위치에 심는다. 바로 그 자리에 새 노드(없으면 아주 가까운 걸 승격).
+   *  캡이 가득 차면 가장 약한 mortal 하나를 비워서라도 반드시 심는다 — 문명은 빠지면 안 되니까.
+   *  나이·비활성으로도 죽지 않는다(영원한 거점). */
+  birthAnchor(lat: number, lon: number): number {
+    const [x, y, z] = latLonToUnit(lat, lon);
+    let idx = this.nearest(x, y, z, Math.cos(0.04)); // 거의 같은 자리에 노드 있으면 승격
+    if (idx < 0) {
+      idx = this.birth(lat, lon, 0.9);
+      if (idx < 0 && this.evictWeakestMortal()) idx = this.birth(lat, lon, 0.9);
+      if (idx < 0) return -1;
+    }
+    const n = this.nodes[idx];
+    n.immortal = true;
+    n.vitality = Math.max(n.vitality, 0.9); // 앵커는 큰 허브
+    n.lastActive = this.tick;
+    return idx;
+  }
+
+  /** 캡이 가득 찼을 때 앵커 자리 확보용 — 가장 활력 낮은 mortal 노드를 죽인다. */
+  private evictWeakestMortal(): boolean {
+    let worst = -1;
+    let worstV = Infinity;
+    for (let k = 0; k < this.aliveNodeIdx.length; k++) {
+      const idx = this.aliveNodeIdx[k];
+      const n = this.nodes[idx];
+      if (n.immortal) continue;
+      if (n.vitality < worstV) {
+        worstV = n.vitality;
+        worst = idx;
+      }
+    }
+    if (worst < 0) return false;
+    this.killNode(worst);
+    return true;
   }
 
   /** (위도,경도)에 자극. 근처 노드가 있으면 활성, 없으면 새 노드 탄생. */
@@ -430,6 +468,7 @@ export class EmergentNetwork {
     for (let k = 0; k < this.aliveNodeIdx.length; k++) {
       const idx = this.aliveNodeIdx[k];
       const nd = this.nodes[idx];
+      if (nd.immortal) continue; // 불멸 앵커 — 나이·비활성으로도 안 죽음
       const tooIdle = this.tick - nd.lastActive > nodeLifespan;
       const tooOld = nd.maxAge > 0 && this.tick - nd.born > nd.maxAge;
       if (tooIdle || tooOld) {

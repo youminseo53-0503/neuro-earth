@@ -44,6 +44,8 @@ export interface SignalSource {
   poll(tick: number): StimulusEvent[];
   /** 선택. 장거리 연결(축삭) 요청 — emergent 엔진의 injectRoute로 전달. */
   pollRoutes?(tick: number): RouteEvent[];
+  /** 선택. 영속(불멸) 앵커를 심을 위치 — emergent 엔진의 birthAnchor로 전달(8대 문명 등). */
+  pollAnchors?(tick: number): { lat: number; lon: number; name?: string }[];
   /**
    * 선택. 외부 데이터 소스만 구현. refreshMs마다 벽시계로 호출되어
    * /api/signals/{id} 프록시에서 데이터를 받아 내부 버퍼를 채운다(렌더 루프와 독립).

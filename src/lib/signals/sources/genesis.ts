@@ -2,50 +2,90 @@ import { mulberry32 } from "../../seededRng";
 import type { SignalSource, StimulusEvent } from "../types";
 
 // 창세(genesis) 소스 — '이상적' 재구성. 인터넷·계정 불필요(시드 = 재현 가능).
-//   · 전 지구를 피보나치 구면으로 고르게 덮는 씨앗 ~300개를 만들고,
-//     시드 셔플 순서로 '시간에 따라 점진적으로' 드러낸다(프런티어가 전 지구로 번짐).
-//   · 막 드러난 점 = 새 노드 탄생(조금 강하게), 이미 드러난 점 = 회전하며 약하게 재자극(망 유지·연결).
-//   · 강도를 절제(0.45~0.8)해 한 번에 saturate되지 않고 '촤라락 깔리는' 과정이 보이게.
-//   · local의 버그(고정 핫스팟 8개 → 한 지역만 꽉 차고 멈춤)를 대체.
+//   · 바다(태평양 등)가 아니라 '육지 핵심 거점'(문명 발상지)에서 탄생.
+//   · 아프리카(요람)에서 출발해 시간순으로 거점이 깨어나고(Out of Africa),
+//     각 거점은 시간이 지나며 주변으로 '번진다'(자극 반경이 점점 넓어짐).
+//   · 강도 절제(0.6) + 점진 공개 → 한 번에 saturate되지 않고 '촤라락 깔리는' 과정이 보임.
 
-const N = 300;
-const REVEAL_EVERY = 5; // 5틱마다 새 씨앗 1개 → 전부 드러나는 데 ~1500틱(≈25초)
-const KEEP = 10; // 매 틱 유지-자극할 기존 점 수
-const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+// 육지 문명 거점 — 대략 'Out of Africa' 확산 순서(요람 → 아시아 → 유럽 → 아메리카 → 오세아니아)
+const CORES: [number, number][] = [
+  [2, 37], // 동아프리카(요람) — 케냐/에티오피아
+  [9, 8], // 서아프리카 — 나이지리아
+  [30, 31], // 이집트(나일)
+  [33, 44], // 메소포타미아 — 이라크
+  [32, 53], // 페르시아 — 이란
+  [28, 77], // 인도 — 델리
+  [23, 90], // 벵골
+  [35, 104], // 중국 중원
+  [31, 121], // 상하이
+  [37, 127], // 한국
+  [36, 138], // 일본
+  [14, 101], // 동남아 — 태국
+  [-6, 107], // 인도네시아
+  [41, 12], // 로마
+  [48, 2], // 파리
+  [52, 13], // 베를린
+  [51, 0], // 런던
+  [55, 37], // 모스크바
+  [40, -3], // 마드리드
+  [19, -99], // 멕시코(메소아메리카)
+  [-13, -72], // 안데스(잉카) — 페루
+  [40, -74], // 뉴욕(동부 미국)
+  [-23, -46], // 상파울루
+  [37, -122], // 샌프란시스코(서부)
+  [-33, 151], // 시드니
+];
+
+const REVEAL_EVERY = 75; // 75틱(≈1.3초)마다 거점 하나씩 깨어남 → 전부 ~31초
+const SPREAD_MAX = 11; // 거점 번짐 반경(도) 한계
 const DEG = 180 / Math.PI;
 
+// 8대 문명 — '영속(불멸) 앵커'. 실제 역사 발생 순서대로 깨어남(탄생 tick).
+// 망은 흥망성쇠로 끊임없이 바뀌지만, 이 8개 거점만은 영원히 남는다.
+const CIV_ANCHORS: { lat: number; lon: number; name: string; tick: number }[] = [
+  { lat: 32, lon: 45, name: "메소포타미아", tick: 40 }, // ~BCE 3500 수메르
+  { lat: 27, lon: 31, name: "이집트", tick: 240 }, // ~BCE 3100 나일
+  { lat: -10, lon: -77, name: "노르테치코(안데스)", tick: 440 }, // ~BCE 3000 카랄
+  { lat: 27, lon: 68, name: "인더스", tick: 660 }, // ~BCE 2600 하라파
+  { lat: 35, lon: 113, name: "황하(중국)", tick: 900 }, // ~BCE 2000
+  { lat: 35, lon: 25, name: "미노아(에게)", tick: 1160 }, // ~BCE 2000 크레타
+  { lat: 18, lon: -94, name: "올메카(메소아메리카)", tick: 1440 }, // ~BCE 1500
+  { lat: 42, lon: 12, name: "로마", tick: 1740 }, // ~BCE 753
+];
+
 export function createGenesisSource(seed = 4242): SignalSource {
-  // 피보나치 구면 → 전 지구 고른 분포
-  const pts: [number, number][] = [];
-  for (let k = 0; k < N; k++) {
-    const y = 1 - (k / (N - 1)) * 2;
-    const lat = Math.asin(Math.max(-1, Math.min(1, y))) * DEG;
-    let lon = ((k * GOLDEN * DEG) % 360 + 360) % 360;
-    if (lon > 180) lon -= 360;
-    pts.push([lat, lon]);
-  }
-  // 시드 셔플 → 한쪽부터가 아니라 전 지구에 흩뿌려지며 점점 빽빽해짐
   const rng = mulberry32(seed);
-  for (let i = N - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [pts[i], pts[j]] = [pts[j], pts[i]];
-  }
+  let nextAnchor = 0; // 다음에 깨어날 8대 문명 인덱스
 
   return {
     id: "genesis",
-    label: "창세 (시드·이상적 재구성)",
+    label: "창세 (육지 거점·8대 문명·이상적 재구성)",
     enabled: true,
-    poll(tick: number): StimulusEvent[] {
-      const revealed = Math.min(N, 2 + Math.floor(tick / REVEAL_EVERY));
-      const out: StimulusEvent[] = [];
-      // 프런티어: 막 드러난 점들 — 새 노드 탄생
-      for (let i = Math.max(0, revealed - 2); i < revealed; i++) {
-        out.push({ lat: pts[i][0], lon: pts[i][1], strength: 0.8 });
+    // 8대 문명을 역사 순서대로(탄생 tick 도달 시) 하나씩 영속 앵커로 심는다.
+    pollAnchors(tick: number) {
+      const out: { lat: number; lon: number; name: string }[] = [];
+      while (nextAnchor < CIV_ANCHORS.length && tick >= CIV_ANCHORS[nextAnchor].tick) {
+        const c = CIV_ANCHORS[nextAnchor++];
+        out.push({ lat: c.lat, lon: c.lon, name: c.name });
       }
-      // 기존: 회전하며 일부 재자극 — 망이 죽지 않고 계속 연결 형성
-      for (let k = 0; k < KEEP; k++) {
-        const idx = (tick * 7 + k * 29) % revealed;
-        out.push({ lat: pts[idx][0], lon: pts[idx][1], strength: 0.45 });
+      return out;
+    },
+    poll(tick: number): StimulusEvent[] {
+      const revealed = Math.min(CORES.length, 1 + Math.floor(tick / REVEAL_EVERY));
+      const out: StimulusEvent[] = [];
+      for (let i = 0; i < revealed; i++) {
+        const [clat, clon] = CORES[i];
+        const ageTicks = tick - i * REVEAL_EVERY; // 이 거점이 깨어난 뒤 경과
+        // 번짐: 시간이 지나며 자극 반경이 넓어짐(탄생이 주변으로 퍼짐)
+        const spread = Math.min(SPREAD_MAX, 1.5 + ageTicks * 0.008);
+        // 막 깨어난 거점은 더 활발히 탄생(2점), 자리 잡은 거점은 유지(1점)
+        const n = i >= revealed - 2 ? 2 : 1;
+        for (let k = 0; k < n; k++) {
+          const dLat = (rng() - 0.5) * 2 * spread;
+          // 경도 번짐은 위도 클수록 넓게(메르카토르 보정)
+          const dLon = ((rng() - 0.5) * 2 * spread) / Math.max(0.25, Math.cos(clat / DEG));
+          out.push({ lat: clat + dLat, lon: clon + dLon, strength: 0.6 });
+        }
       }
       return out;
     },
