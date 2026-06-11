@@ -291,6 +291,7 @@ export function EmergentLayer() {
   const lastNet = useRef<EmergentNetwork | null>(null);
   const director = useRef(new PandemicDirector());
   const prevClimax = useRef(false);
+  const handedOff = useRef(false);
   const setPandemic = usePandemic((s) => s.set);
 
   // 팬데믹 '대봉쇄' 시네마틱이 아닐 땐 하단 자막 숨김
@@ -341,6 +342,7 @@ export function EmergentLayer() {
       lastNet.current = net;
       prevSyn.current = 0;
       director.current.reset(); // 새 망 → 시네마틱도 처음부터
+      handedOff.current = false; // 라이브 핸드오프 플래그도 리셋
     }
 
     const tick = tickRef.current++;
@@ -348,6 +350,12 @@ export function EmergentLayer() {
     // 팬데믹 '대봉쇄' 시네마틱 — 엔진을 직접 연출(씨앗·전염률·전부감염·재유행억제)하고 자막/halt/주입량 산출
     let arc: PandemicHud | null = null;
     if (config.pandemicArc) arc = director.current.update(net);
+
+    // present가 '오늘'에 닿아 잠시 머문 뒤 → 실시간(라이브) 모드로 자연 전환(한 번만)
+    if (arc?.done && !handedOff.current) {
+      handedOff.current = true;
+      useViz.getState().setMode("live");
+    }
 
     // 봉쇄 중엔 항공편(노선)은 일부만, 노드 자극은 바닥값 유지(너무 흐려지지 않게) — 교류는 멎되 0은 아님
     const routeScale = arc ? arc.injectScale : 1;

@@ -31,6 +31,7 @@ export interface PandemicHud {
   nodeScale: number;    // 노드 자극 세기(0..1) — 너무 흐려지지 않게 바닥값 유지(봉쇄 0.5)
   climax: boolean;      // 클라이맥스(지구 자동 끄기·회전 가속)
   camDist: number;      // 시네마틱 카메라 목표 거리(돌리). 0이면 사용자 자유
+  done: boolean;        // present가 '오늘'에 닿아 잠시 머문 뒤 — 실시간(라이브) 모드로 넘길 신호
 }
 
 // 단계별 카메라 연출(돌리 목표 거리). EARTH_RADIUS=2, 기본 카메라 6, 범위 [3.2, 14].
@@ -80,6 +81,7 @@ export class PandemicDirector {
   private LOCK = 240;       // 대봉쇄 저점 유지(~4초)
   private REC = 3000;       // 회복 램프(2020.5→2021.6) — 아주 더디게(틱 ≈ 프레임, ~50초)
   private MONTH_TICKS = 36; // present에서 한 달이 흐르는 틱(2021.6→오늘까지 시간 가속)
+  private HOLD = 180;       // '오늘'에 닿아 잠시 머무는 시간(~3초) 후 실시간으로 전환
 
   reset() {
     this.phase = "growing";
@@ -116,6 +118,7 @@ export class PandemicDirector {
     let injectScale = 1;
     let nodeScale = 1;
     let climax = false;
+    let done = false;
     let dateLabel = "";
     let caption = "";
 
@@ -224,18 +227,21 @@ export class PandemicDirector {
         break;
       }
       case "present": {
-        // 엔데믹 이후 — 지구를 다시 켜고(클라이맥스 해제) 일상으로. 날짜가 오늘까지 흐르며
-        // 가만히 둬도 계속 살아 움직인다(실시간 항공망 그대로). 오늘에 닿으면 그 자리에서 계속.
+        // 엔데믹 이후 — 지구를 다시 켜고(클라이맥스 해제) 일상으로. 날짜가 오늘까지 흐른다.
+        // 오늘에 닿으면 ~3초 머문 뒤 done=true → EmergentLayer가 실시간(라이브) 모드로 자연 전환.
         climax = false;
         const tgt = todayMonth();
         const dur = Math.max(1, (tgt - M(2021, 6)) * this.MONTH_TICKS);
         const p = Math.min(1, local / dur);
         dateLabel = monthLabel(lerp(M(2021, 6), tgt, p));
-        caption = p < 1 ? "엔데믹 — 일상으로 돌아오는 세계" : "오늘 · 다시 살아 움직이는 세계";
+        if (p < 1) caption = "엔데믹 — 일상으로 돌아오는 세계";
+        else if (local < dur + this.HOLD) caption = "오늘 · 다시 살아 움직이는 세계";
+        else caption = "이제, 실시간으로 —";
+        done = local >= dur + this.HOLD;
         break;
       }
     }
 
-    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, nodeScale, climax, camDist: CAM[this.phase] };
+    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, nodeScale, climax, camDist: CAM[this.phase], done };
   }
 }
