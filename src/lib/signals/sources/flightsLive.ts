@@ -16,6 +16,31 @@ function unit(lat: number, lon: number): [number, number, number] {
 
 const LONG_THRESH = Math.cos(0.32); // 장거리(~18°+) 쌍만 노선
 const ROUTES_PER_AIRPORT = 5; // 공항당 장거리 연결 수(고르게)
+const BATCH = 10; // 한 번에 흘려보낼 노선 수
+const EVERY = 18; // 몇 틱마다 한 배치(≈0.3초) → 노선이 10개씩 누적되며 차오름
+
+/** 장거리 후보 쌍 목록을 만든다. 샘플 슬롯(s) 바깥 루프 → 전 지구가 고르게 차오르도록 인터리브. */
+function buildCandidates(airports: Ap[]): RouteEvent[] {
+  const n = airports.length;
+  if (n < 2) return [];
+  const u = airports.map((a) => unit(a.lat, a.lon));
+  const out: RouteEvent[] = [];
+  for (let s = 1; s <= ROUTES_PER_AIRPORT; s++) {
+    for (let i = 0; i < n; i++) {
+      const j = (i + s * 7) % n;
+      if (j === i) continue;
+      const d = u[i][0] * u[j][0] + u[i][1] * u[j][1] + u[i][2] * u[j][2];
+      if (d < LONG_THRESH) {
+        out.push({
+          latA: airports[i].lat, lonA: airports[i].lon,
+          latB: airports[j].lat, lonB: airports[j].lon,
+          weight: 0.4,
+        });
+      }
+    }
+  }
+  return out;
+}
 
 /**
  * 실시간 항공 유동인구 (OpenSky) + 장거리 노선(축삭).
@@ -25,6 +50,8 @@ const ROUTES_PER_AIRPORT = 5; // 공항당 장거리 연결 수(고르게)
  */
 export function createFlightsLiveSource(): SignalSource {
   let airports: Ap[] = [];
+  let cands: RouteEvent[] = []; // 장거리 후보 목록(캐시)
+  let cursor = 0; // 누적 주입 커서
 
   return {
     id: "flightslive",
@@ -37,6 +64,7 @@ export function createFlightsLiveSource(): SignalSource {
       if (!res.ok) return;
       const data = await res.json();
       airports = Array.isArray(data?.airports) ? data.airports : [];
+      cands = buildCandidates(airports);
     },
 
     poll(tick: number): StimulusEvent[] {
@@ -57,26 +85,13 @@ export function createFlightsLiveSource(): SignalSource {
     },
 
     pollRoutes(tick: number): RouteEvent[] {
-      if (tick % 48 !== 0 || airports.length < 2) return [];
-      const n = airports.length;
-      const u = airports.map((a) => unit(a.lat, a.lon));
+      // 한꺼번에 다 말고, EVERY틱마다 BATCH개씩 커서로 흘려보냄 → 노선이 10개씩 누적되며 차오름.
+      // (이미 연결된 쌍은 injectRoute가 무시하므로, 다 차면 죽은 노선만 다시 이어줌.)
+      if (cands.length === 0 || tick % EVERY !== 0) return [];
       const out: RouteEvent[] = [];
-      // 공항마다 장거리 후보를 흩뿌려 골라 K개씩 연결 → 전 지구 고르게(동아시아 쏠림 X)
-      for (let i = 0; i < n; i++) {
-        let added = 0;
-        for (let s = 1; s < n && added < ROUTES_PER_AIRPORT; s++) {
-          const j = (i + s * 7) % n;
-          if (j === i) continue;
-          const d = u[i][0] * u[j][0] + u[i][1] * u[j][1] + u[i][2] * u[j][2];
-          if (d < LONG_THRESH) {
-            out.push({
-              latA: airports[i].lat, lonA: airports[i].lon,
-              latB: airports[j].lat, lonB: airports[j].lon,
-              weight: 0.4,
-            });
-            added++;
-          }
-        }
+      for (let k = 0; k < BATCH; k++) {
+        out.push(cands[cursor % cands.length]);
+        cursor++;
       }
       return out;
     },
