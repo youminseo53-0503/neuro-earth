@@ -8,14 +8,9 @@ interface UIState {
    */
   earthVisible: boolean;
   toggleEarth: () => void;
-
-  /**
-   * 시나리오 클라이맥스(창세=다 자람 / 팬데믹=대봉쇄)에서 자동으로 지구를 끈다.
-   * 사용자의 수동 토글(earthVisible)과 별개 — 둘 중 하나라도 '끔'이면 지구는 사라진다.
-   * EmergentLayer가 매 프레임 판정해 세팅, Earth가 구독해 반영한다.
-   */
-  climaxEarthOff: boolean;
-  setClimaxEarthOff: (v: boolean) => void;
+  /** 지구 표시를 직접 세팅. 클라이맥스 진입/해제에서 '1회성'으로만 부르고(매 프레임 강제 금지),
+   *  그 사이엔 사용자 토글이 이긴다 → 자동으로 꺼져도 '지구 켜기' 버튼이 먹힌다. */
+  setEarthVisible: (v: boolean) => void;
 
   /**
    * 자동회전 속도. 클라이맥스에서 EmergentLayer가 매 프레임 lerp로 끌어올린다.
@@ -30,9 +25,7 @@ export const BASE_SPIN = 0.25;
 export const useUI = create<UIState>((set) => ({
   earthVisible: true,
   toggleEarth: () => set((s) => ({ earthVisible: !s.earthVisible })),
-
-  climaxEarthOff: false,
-  setClimaxEarthOff: (v) => set((s) => (s.climaxEarthOff === v ? s : { climaxEarthOff: v })),
+  setEarthVisible: (v) => set((s) => (s.earthVisible === v ? s : { earthVisible: v })),
 
   spin: BASE_SPIN,
   setSpin: (v) => set({ spin: v }),
