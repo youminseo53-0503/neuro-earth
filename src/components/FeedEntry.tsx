@@ -7,7 +7,13 @@ import { useViz } from "@/store/useViz";
 
 const PREVIEW_LEN = 110;
 
-export function FeedEntry({ msg }: { msg: TimelineMessage }) {
+export function FeedEntry({
+  msg,
+  firstOfBundle = true,
+}: {
+  msg: TimelineMessage;
+  firstOfBundle?: boolean;
+}) {
   const isMinseo = msg.role === "minseo";
   const collapsible = Boolean(msg.long) && msg.text.length > PREVIEW_LEN;
   const [open, setOpen] = useState(false);
@@ -24,9 +30,11 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
     return (
       <div className="flex w-full flex-col items-end gap-1">
         <div className="flex flex-row-reverse items-center gap-2 px-1 text-[11px] tracking-wide">
-          <span className="font-mono font-semibold" style={{ color: "var(--minseo)" }}>
-            #{String(msg.n).padStart(2, "0")}
-          </span>
+          {firstOfBundle && (
+            <span className="font-mono font-semibold" style={{ color: "var(--minseo)" }}>
+              #{String(msg.n).padStart(2, "0")}
+            </span>
+          )}
           <span className="font-semibold text-white/80">민서</span>
           <span className="rounded bg-amber-400/15 px-1.5 py-px text-[10px] text-amber-300/80">
             선택
@@ -69,12 +77,14 @@ export function FeedEntry({ msg }: { msg: TimelineMessage }) {
           isMinseo ? "flex-row-reverse" : ""
         }`}
       >
-        <span
-          className="font-mono font-semibold"
-          style={{ color: isMinseo ? "var(--minseo)" : "var(--neon-cyan)" }}
-        >
-          #{String(msg.n).padStart(2, "0")}
-        </span>
+        {firstOfBundle && (
+          <span
+            className="font-mono font-semibold"
+            style={{ color: isMinseo ? "var(--minseo)" : "var(--neon-cyan)" }}
+          >
+            #{String(msg.n).padStart(2, "0")}
+          </span>
+        )}
         <span className="font-semibold text-white/80">
           {isMinseo ? "민서" : "클로드"}
         </span>

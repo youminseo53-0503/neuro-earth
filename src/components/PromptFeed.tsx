@@ -34,7 +34,11 @@ export function PromptFeed() {
       {/* 피드 (카톡식, 위 → 아래) */}
       <div className="feed-scroll flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {timeline.map((msg, i) => (
-          <FeedEntry key={`${msg.n}-${msg.role}-${i}`} msg={msg} />
+          <FeedEntry
+            key={`${msg.n}-${msg.role}-${i}`}
+            msg={msg}
+            firstOfBundle={i === 0 || timeline[i - 1].n !== msg.n}
+          />
         ))}
         <div className="pt-2 text-center text-[11px] text-white/25">
           — 여기까지가 현재 기록 · 작업이 진행되면 계속 쌓입니다 —
