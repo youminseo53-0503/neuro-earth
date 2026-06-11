@@ -110,11 +110,11 @@ function genCiv(extra: Partial<VizConfig> = {}): VizConfig {
   return { ...EM_BASE, sources: ["genesisciv"], routeGrow: true, ...extra };
 }
 
-// 팬데믹 — 실시간/창세와 직각인 '독립 버전 라인'. 리모컨에서 따로 분리(25 초기 · 26 멸종).
+// 팬데믹 — 실시간/창세와 직각인 '독립 버전 라인'. 리모컨에서 따로 분리(25 초기 · 26 대봉쇄).
 // 단일 config(모드 분기 없음) → 실시간/창세 양쪽에 새지 않는다.
+// 수명(mortal)은 끔 — 문명 흥망이 아니라 '안정된 망 위 전염/회복'이라야 노드 교체로
+// 빨강이 멋대로 걷히지 않고, 회복 속도를 디렉터가 온전히 통제한다.
 const PANDEMIC_BASE: VizConfig = live({
-  mortal: true,
-  lifespan: 900,
   softCap: 6500,
   maxNodes: 8000,
   pandemic: true,

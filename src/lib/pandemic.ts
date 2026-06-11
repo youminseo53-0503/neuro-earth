@@ -25,7 +25,8 @@ export interface PandemicHud {
   caption: string;      // 화면 하단 한 줄
   infectedPct: number;  // 0..1
   halt: number;         // 노선 밝기(0..1) — 봉쇄 시 바닥값까지 떨어지되 0은 아님
-  injectScale: number;  // 자극·항공 주입 강도(0..1) — 봉쇄 시 최소 운항
+  injectScale: number;  // 항공편(노선) 주입 비율(0..1) — 봉쇄 시 최소 운항
+  nodeScale: number;    // 노드 자극 세기(0..1) — 너무 흐려지지 않게 바닥값 유지(봉쇄 0.5)
   climax: boolean;      // 클라이맥스(지구 자동 끄기·회전 가속)
 }
 
@@ -54,7 +55,7 @@ export class PandemicDirector {
   private SPREAD = 1500;    // 번짐 구간(천천히 보이게)
   private SAT = 300;        // 삽시간 포화 한계
   private LOCK = 240;       // 대봉쇄 저점 유지(~4초)
-  private REC = 1500;       // 회복 램프(2020.5→2021.6)
+  private REC = 3000;       // 회복 램프(2020.5→2021.6) — 아주 더디게(틱 ≈ 프레임, ~50초)
 
   reset() {
     this.phase = "growing";
@@ -89,6 +90,7 @@ export class PandemicDirector {
 
     let halt = 1;
     let injectScale = 1;
+    let nodeScale = 1;
     let climax = false;
     let dateLabel = "";
     let caption = "";
@@ -152,15 +154,13 @@ export class PandemicDirector {
         // 대봉쇄 — 완전 정지(멸종)가 아니라 교류가 거의 멎음. 최소 운항·신호는 살아있음.
         climax = true; // 클라이맥스 — 지구 자동 끄기·회전 가속
         const p = local / this.LOCK;
-        halt = lerp(1, 0.1, p); // 노선 밝기 1→0.1(완전 0 아님 — 화물·필수편 잔존)
-        injectScale = lerp(1, 0.06, p); // 주입 1→0.06(최소 운항)
+        halt = lerp(1, 0.1, p);          // 노선 밝기 1→0.1(완전 0 아님 — 화물·필수편 잔존)
+        injectScale = lerp(1, 0.06, p);  // 항공편 1→0.06(최소 운항)
+        nodeScale = lerp(1, 0.5, p);     // 노드 자극 절반까지만(흐려지되 빨강은 또렷)
         dateLabel = monthLabel(M(2020, 4));
         caption = "대봉쇄 — 하늘길이 거의 멎다 (항공편 -73%)";
         if (local >= this.LOCK) {
-          // 회복 준비 — 감염 경과 리셋(곧 회복 물결이 일도록) 후 회복 켬
-          for (let i = 0; i < nodes.length; i++) if (nodes[i].alive && nodes[i].inf === 1) nodes[i].infT = 0;
-          net.cfg.recoverTicks = 240; // 감염 → 회복(파랑)
-          net.cfg.immuneTicks = 360;  // 회복 → 다시 건강(평소 색)
+          net.cfg.pandemic = false; // 엔진 자동 전이/재유행 끔 — 회복은 디렉터가 천천히 직접
           this.go("recovery", tick);
         }
         break;
@@ -169,14 +169,25 @@ export class PandemicDirector {
         // 더딘 회복(체크마크) — 멈췄지만 죽지 않았다. 빨강→파랑→건강, 하늘길이 다시 이어짐.
         climax = true; // 회복하는 동안에도 지구는 끈 채(빨강→파랑 망이 도는 걸 보여줌)
         const p = local / this.REC;
-        halt = lerp(0.1, 0.6, p);        // 노선 밝기 회복
+        halt = lerp(0.1, 0.6, p);         // 노선 밝기 회복
         injectScale = lerp(0.06, 0.5, p); // 항공 운항 회복
+        nodeScale = lerp(0.5, 0.9, p);    // 세계가 다시 깨어남 — 노드 밝기 회복(출생은 절제)
         dateLabel = monthLabel(lerp(M(2020, 5), M(2021, 6), p));
         caption = "그래도 멈추진 않았다 — 더디게 다시 이어지는 하늘길";
+        // 아주 더딘 치유 — 매 프레임 극소수만 무작위로 단계 진행(물결처럼 흩어). 후반일수록 살짝 가속.
+        // 빨강이 2020 내내 남아있다가 2021로 가며 천천히 걷히게.
+        const toRec = 0.0004 + 0.0012 * p;  // 감염(빨강)→회복(파랑)
+        const toWell = 0.00025 + 0.0009 * p; // 회복(파랑)→건강(평소색)
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+          if (!n.alive) continue;
+          if (n.inf === 1) { if (Math.random() < toRec) { n.inf = 2; n.infT = 0; } }
+          else if (n.inf === 2) { if (Math.random() < toWell) { n.inf = 0; n.infT = 0; } }
+        }
         break;
       }
     }
 
-    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, climax };
+    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, nodeScale, climax };
   }
 }

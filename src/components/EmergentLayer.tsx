@@ -347,15 +347,16 @@ export function EmergentLayer() {
     let arc: PandemicHud | null = null;
     if (config.pandemicArc) arc = director.current.update(net);
 
-    // 봉쇄 중엔 주입을 최소로(자극 세기↓, 항공편 일부만) — 교류는 멎되 0은 아님
-    const inject = arc ? arc.injectScale : 1;
+    // 봉쇄 중엔 항공편(노선)은 일부만, 노드 자극은 바닥값 유지(너무 흐려지지 않게) — 교류는 멎되 0은 아님
+    const routeScale = arc ? arc.injectScale : 1;
+    const nodeScale = arc ? arc.nodeScale : 1;
     for (const src of sources) {
       if (!src.enabled) continue;
       src.observe?.(net.metrics.nodes); // 현재 규모를 소스에 알림(문명사: 비행기=N 기준)
-      for (const ev of src.poll(tick)) net.injectStimulus(ev.lat, ev.lon, ev.strength * inject);
+      for (const ev of src.poll(tick)) net.injectStimulus(ev.lat, ev.lon, ev.strength * nodeScale);
       if (src.pollRoutes) {
         for (const rt of src.pollRoutes(tick)) {
-          if (inject < 1 && Math.random() > inject) continue; // 최소 운항 — 일부 항공편만 띄움
+          if (routeScale < 1 && Math.random() > routeScale) continue; // 최소 운항 — 일부 항공편만 띄움
           net.injectRoute(rt.latA, rt.lonA, rt.latB, rt.lonB, rt.weight);
         }
       }
