@@ -18,7 +18,8 @@ export type PandemicPhase =
   | "saturating" // 삽시간 포화(싹 빨강으로 수렴)
   | "peak"       // 전 세계 감염 — 지구 켠 채 ~5초 보여줌(어디가 빨간지 이해되게)
   | "lockdown"   // 대봉쇄 — 그제서야 지구 꺼지고 교류 멎음(최소 운항만)
-  | "recovery";  // 더딘 회복 — 다시 이어지는 하늘길
+  | "recovery"   // 더딘 회복 — 다시 이어지는 하늘길(2020.5→2021.6)
+  | "present";   // 엔데믹 이후 — 오늘까지 시간이 흐르며 일상으로 돌아온 세계(가만히 둬도 계속)
 
 export interface PandemicHud {
   phase: PandemicPhase;
@@ -34,6 +35,11 @@ export interface PandemicHud {
 const WUHAN: [number, number] = [30.6, 114.3];
 
 const M = (y: number, mo: number) => y * 12 + (mo - 1);
+/** 실제 '오늘'의 절대 월(브라우저 시계) — 매번 보면 그때의 현재까지 흐른다. */
+function todayMonth(): number {
+  const d = new Date();
+  return d.getFullYear() * 12 + d.getMonth(); // getMonth 0-base → M(y, mo)와 정합
+}
 function monthLabel(absMonth: number): string {
   const a = Math.round(absMonth);
   const y = Math.floor(a / 12);
@@ -58,6 +64,7 @@ export class PandemicDirector {
   private PEAK = 300;       // 싹 빨개진 채 지구 켜고 ~5초 holding(상황 이해)
   private LOCK = 240;       // 대봉쇄 저점 유지(~4초)
   private REC = 3000;       // 회복 램프(2020.5→2021.6) — 아주 더디게(틱 ≈ 프레임, ~50초)
+  private MONTH_TICKS = 36; // present에서 한 달이 흐르는 틱(2021.6→오늘까지 시간 가속)
 
   reset() {
     this.phase = "growing";
@@ -195,6 +202,21 @@ export class PandemicDirector {
           if (n.inf === 1) { if (Math.random() < toRec) { n.inf = 2; n.infT = 0; } }
           else if (n.inf === 2) { if (Math.random() < toWell) { n.inf = 0; n.infT = 0; } }
         }
+        if (local >= this.REC) {
+          for (let i = 0; i < nodes.length; i++) if (nodes[i].alive) { nodes[i].inf = 0; nodes[i].infT = 0; } // 잔여 마무리 — 모두 건강
+          this.go("present", tick);
+        }
+        break;
+      }
+      case "present": {
+        // 엔데믹 이후 — 지구를 다시 켜고(클라이맥스 해제) 일상으로. 날짜가 오늘까지 흐르며
+        // 가만히 둬도 계속 살아 움직인다(실시간 항공망 그대로). 오늘에 닿으면 그 자리에서 계속.
+        climax = false;
+        const tgt = todayMonth();
+        const dur = Math.max(1, (tgt - M(2021, 6)) * this.MONTH_TICKS);
+        const p = Math.min(1, local / dur);
+        dateLabel = monthLabel(lerp(M(2021, 6), tgt, p));
+        caption = p < 1 ? "엔데믹 — 일상으로 돌아오는 세계" : "오늘 · 다시 살아 움직이는 세계";
         break;
       }
     }
