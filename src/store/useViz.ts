@@ -1,32 +1,42 @@
 import { create } from "zustand";
-import { VERSIONS, type VizConfig } from "@/lib/versions";
-import { SCENARIOS, DEFAULT_SCENARIO } from "@/lib/scenarios";
+import { LATEST, VERSIONS, configFor, type VizConfig, type ViewMode } from "@/lib/versions";
 
 interface VizState {
   config: VizConfig;
+  /** 현재 버전(진화 단계) */
   versionId: string;
-  /** 현재 시나리오 프리셋(실시간/창세/팬데믹/회복). 과거 버전 탐색 중엔 "" */
-  scenarioId: string;
+  /** 현재 모드(보는 방식) — 실시간 / 창세 */
+  mode: ViewMode;
   setVersion: (id: string) => void;
-  setScenario: (id: string) => void;
+  setMode: (mode: string) => void;
 }
 
-/** 현재 보고 있는 시각 상태. 시나리오 바(프리셋) + 버전 리모컨(과거 탐색)이 바꾼다. */
-export const useViz = create<VizState>((set) => ({
-  config: DEFAULT_SCENARIO.config,
-  versionId: DEFAULT_SCENARIO.versionId ?? "", // 실시간 시나리오 = v-live 버전(둘이 일치)
-  scenarioId: DEFAULT_SCENARIO.id,
+/**
+ * 현재 보고 있는 시각 상태 — 두 직각 축:
+ *   · versionId = 진화 단계 (버전 리모컨)
+ *   · mode      = 보는 방식 실시간/창세 (하단 시나리오 바)
+ * config = configFor(현재 버전, 현재 모드).
+ */
+export const useViz = create<VizState>((set, get) => ({
+  config: configFor(LATEST, "live"),
+  versionId: LATEST.id,
+  mode: "live",
   setVersion: (id) => {
     const v = VERSIONS.find((x) => x.id === id);
     if (!v) return;
-    // 이 버전에 대응하는 시나리오가 있으면 하단 바도 같이 켠다(양방향 연동)
-    const sc = SCENARIOS.find((s) => s.versionId === id);
-    set({ config: v.config, versionId: id, scenarioId: sc?.id ?? "" });
+    // 단계면 현재 모드 유지, 옛 단일 버전이면 그 config(모드 무관)
+    set({ config: configFor(v, get().mode), versionId: id });
   },
-  setScenario: (id) => {
-    const s = SCENARIOS.find((x) => x.id === id);
-    if (!s || s.status !== "ready") return;
-    // 이 시나리오에 대응하는 버전이 있으면 왼쪽 리모컨도 같이 켠다(양방향 연동)
-    set({ config: s.config, scenarioId: id, versionId: s.versionId ?? "" });
+  setMode: (mode) => {
+    if (mode !== "live" && mode !== "genesis") return; // 팬데믹/회복은 준비 중
+    const m = mode as ViewMode;
+    const cur = VERSIONS.find((x) => x.id === get().versionId);
+    if (cur?.modes) {
+      set({ config: cur.modes[m], mode: m }); // 같은 단계에서 모드만 토글
+    } else {
+      // 옛 버전 보던 중 모드를 누르면 → 최신 단계로 점프(그 모드로)
+      const stage = [...VERSIONS].reverse().find((x) => x.modes);
+      if (stage) set({ config: stage.modes![m], versionId: stage.id, mode: m });
+    }
   },
 }));

@@ -4,7 +4,11 @@ import type { SourceId } from "./signals/types";
 // "살아있는 보고서" — 각 시각 버전을 프리셋으로 박제.
 // 개발 로그(timeline)의 항목 n과 연결되어, '이 버전 보기'/리모컨을 누르면
 // 화면이 그 버전 설정으로 되돌아가고 해당 채팅 위치로 스크롤된다.
-// 큰 시각 변화가 생길 때마다 여기에 버전을 하나씩 append.
+//
+// 두 개의 직각 축:
+//   · 버전(VizVersion) = 진화 '단계'(리모컨)
+//   · 모드(ViewMode)   = 그 단계를 보는 방식 — 실시간 / 창세 (시나리오 바)
+// 시나리오 단계(16+)는 modes(창세·실시간)를 둘 다 갖는다. 옛 버전(0-15)은 단일 config.
 // ─────────────────────────────────────────────────────────────
 
 export interface VizConfig {
@@ -38,53 +42,51 @@ export interface VizConfig {
   smallNodes?: boolean;
   /** 노드 절대 수명(턴오버) — 활성이어도 나이 들면 죽어 슬롯이 풀림. 활동이 옮겨다니고 정적이지 않게 */
   mortal?: boolean;
-  /** emergent 노드 슬롯 상한(밀도). 안 주면 기본 1200. 실시간·창세는 높여 더 빽빽하게 */
+  /** emergent 노드 슬롯 상한(밀도). 안 주면 기본 1200 */
   maxNodes?: number;
+  /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
+  civAnchors?: boolean;
 }
+
+/** 단계를 보는 방식 — 직각 축 */
+export type ViewMode = "live" | "genesis";
 
 export interface VizVersion {
   id: string;
   /** 연결되는 timeline 항목 번호 */
   n: number;
   label: string;
-  config: VizConfig;
+  /** 옛 단일 버전(0-15) */
+  config?: VizConfig;
+  /** 시나리오 단계(16+) — 창세·실시간 두 모드를 다 가짐 */
+  modes?: Record<ViewMode, VizConfig>;
 }
 
-// 시나리오(실시간/창세)와 버전 리모컨이 '같은 config 객체'를 공유 → 둘이 항상 일치(드리프트 방지).
-// 실시간 — 이중 신경계(항공 emergent + 스타링크 그리드) + 노드 수명.
-export const LIVE_CONFIG: VizConfig = {
+// ── 시나리오 단계의 모드 베이스 ──
+// 실시간 = 항공(emergent) + 스타링크 그리드 / 창세 = 육지에서 스스로 깔림
+const EM_BASE = {
   showEarth: true,
   showNet: true,
-  colorMode: "act",
+  colorMode: "act" as const,
   jitter: 4,
-  sources: ["flightslive"],
   gain: 1,
-  engine: "emergent",
-  intrinsic: true,
-  hormone: true,
-  fatigue: true,
-  homeo: true,
-  gridWave: true,
+  engine: "emergent" as const,
   smallNodes: true,
-  mortal: true,
-  maxNodes: 6000,
-};
-// 창세 — 육지 거점 번짐 + 8대 문명 앵커.
-export const GENESIS_CONFIG: VizConfig = {
-  showEarth: true,
-  showNet: true,
-  colorMode: "act",
-  jitter: 4,
-  sources: ["genesis"],
-  gain: 1,
-  engine: "emergent",
   intrinsic: true,
   hormone: true,
   homeo: true,
-  smallNodes: true,
-  mortal: true,
-  maxNodes: 6000,
 };
+function live(extra: Partial<VizConfig> = {}): VizConfig {
+  return { ...EM_BASE, sources: ["flightslive"], gridWave: true, fatigue: true, ...extra };
+}
+function genLocal(extra: Partial<VizConfig> = {}): VizConfig {
+  // 초기 창세 — 로컬 시드(아프리카 뭉침)
+  return { ...EM_BASE, sources: ["local"], ...extra };
+}
+function genCores(extra: Partial<VizConfig> = {}): VizConfig {
+  // 창세 — 육지 거점 번짐(Out of Africa)
+  return { ...EM_BASE, sources: ["genesis"], ...extra };
+}
 
 export const VERSIONS: VizVersion[] = [
   {
@@ -151,152 +153,81 @@ export const VERSIONS: VizVersion[] = [
     id: "v-emergent",
     n: 28,
     label: "Emergent 엔진 (빈 지구에서 자라남)",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["crypto", "quakes"],
-      gain: 1,
-      engine: "emergent",
-    },
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["crypto", "quakes"], gain: 1, engine: "emergent" },
   },
   {
     id: "v-alive",
     n: 29,
     label: "Emergent + 내재활동 (스스로 발화)",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["crypto", "quakes"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-    },
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["crypto", "quakes"], gain: 1, engine: "emergent", intrinsic: true },
   },
   {
     id: "v-flights",
     n: 31,
     label: "실시간 항공 유동인구 (OpenSky·진짜)",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["flightslive"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-    },
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["flightslive"], gain: 1, engine: "emergent", intrinsic: true },
   },
   {
     id: "v-hormone",
     n: 34,
     label: "문화 (전 지구 전파·연쇄) — 항공 뇌",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["flightslive"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-      hormone: true,
-    },
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["flightslive"], gain: 1, engine: "emergent", intrinsic: true, hormone: true },
   },
   {
     id: "v-social",
     n: 40,
     label: "완성형 — 문화·식상함·평준화 (항공 뇌)",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["flightslive"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-      hormone: true,
-      fatigue: true,
-      homeo: true,
-    },
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["flightslive"], gain: 1, engine: "emergent", intrinsic: true, hormone: true, fatigue: true, homeo: true },
   },
   {
     id: "v-dual",
     n: 45,
     label: "이중 신경계 — 체성(항공·이동) + 자율(스타링크 배경망)",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["flightslive"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-      hormone: true,
-      fatigue: true,
-      homeo: true,
-      gridWave: true,
-      smallNodes: true,
-    },
+    config: { showEarth: true, showNet: true, colorMode: "act", jitter: 4, sources: ["flightslive"], gain: 1, engine: "emergent", intrinsic: true, hormone: true, fatigue: true, homeo: true, gridWave: true, smallNodes: true },
   },
+
+  // ── 시나리오 단계(16+) — 각 단계가 창세·실시간 두 모드를 다 가짐 ──
   {
-    id: "v-genesis-cluster",
+    id: "s-scene",
     n: 61,
-    label: "창세·시나리오 등장 — 아프리카에 뭉쳐 자람",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["local"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-      hormone: true,
-      homeo: true,
-      smallNodes: true,
-    },
+    label: "시나리오 등장 — 창세/실시간 분기",
+    modes: { live: live(), genesis: genLocal() },
   },
   {
-    id: "v-mortal",
+    id: "s-mortal",
     n: 63,
     label: "셀데스(노드 수명) — 활동이 옮겨다님",
-    config: {
-      showEarth: true,
-      showNet: true,
-      colorMode: "act",
-      jitter: 4,
-      sources: ["local"],
-      gain: 1,
-      engine: "emergent",
-      intrinsic: true,
-      hormone: true,
-      homeo: true,
-      smallNodes: true,
-      mortal: true,
-    },
+    modes: { live: live({ mortal: true }), genesis: genLocal({ mortal: true }) },
   },
   {
-    id: "v-genesis-cores",
+    id: "s-cores",
+    n: 64,
+    label: "창세 육지 거점 번짐 (Out of Africa)",
+    modes: { live: live({ mortal: true }), genesis: genCores({ mortal: true }) },
+  },
+  {
+    id: "s-civ",
     n: 65,
-    label: "창세 — 육지 거점 번짐 + 8대 문명 앵커 (Out of Africa)",
-    config: GENESIS_CONFIG,
+    label: "8대 문명 영속 앵커 (역사순)",
+    modes: { live: live({ mortal: true }), genesis: genCores({ mortal: true, civAnchors: true }) },
   },
   {
-    id: "v-live",
-    n: 57,
-    label: "실시간 — 현재 통합형 (항공·스타링크·수명)",
-    config: LIVE_CONFIG,
+    id: "s-dense",
+    n: 66,
+    label: "노드 6000 — 빽빽한 뇌",
+    modes: {
+      live: live({ mortal: true, maxNodes: 6000 }),
+      genesis: genCores({ mortal: true, civAnchors: true, maxNodes: 6000 }),
+    },
   },
 ];
 
 export const LATEST: VizVersion = VERSIONS[VERSIONS.length - 1];
+
+/** 버전 + 모드 → 실제 config. 옛 버전은 모드 무관 단일 config. */
+export function configFor(v: VizVersion, mode: ViewMode): VizConfig {
+  return v.modes ? v.modes[mode] : v.config!;
+}
 
 /** timeline 항목 번호 → 그 항목에 달린 버전(있으면) */
 export function versionForEntry(n: number): VizVersion | undefined {

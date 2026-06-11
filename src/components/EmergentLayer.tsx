@@ -52,6 +52,7 @@ export function EmergentLayer() {
     (config.fatigue ? "f" : "") +
     (config.homeo ? "o" : "") +
     (config.mortal ? "m" : "") +
+    (config.civAnchors ? "C" : "") +
     "|" + (config.maxNodes ?? 1200);
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork({
@@ -142,7 +143,7 @@ export function EmergentLayer() {
         for (const rt of src.pollRoutes(tick))
           net.injectRoute(rt.latA, rt.lonA, rt.latB, rt.lonB, rt.weight);
       }
-      if (src.pollAnchors) {
+      if (config.civAnchors && src.pollAnchors) {
         for (const a of src.pollAnchors(tick)) net.birthAnchor(a.lat, a.lon); // 8대 문명 영속 앵커
       }
     }
