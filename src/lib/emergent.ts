@@ -14,6 +14,8 @@ import { mulberry32 } from "./seededRng";
 // ─────────────────────────────────────────────────────────────
 
 const DEG = 180 / Math.PI;
+const GLAT = 18; // 로컬 밀도 격자 — 위도 셀(10°)
+const GLON = 36; // 경도 셀(10°). 셀별 수용한계로 지역 균등 성장
 
 function latLonToUnit(lat: number, lon: number): [number, number, number] {
   const phi = (90 - lat) / DEG;
@@ -91,6 +93,7 @@ export interface EConfig {
   maxAge: number; // 절대 수명(틱). 0=불멸. >0이면 활동과 무관하게 나이 들어 죽음(턴오버·문명 흥망)
   softCap: number; // 밀도 의존 자기조절 목표(수용한계). 0=끔. N이 여기 가까우면 탄생률↓ → 하드캡 무관 ~softCap에서 출렁이며 유지
   softCapRamp: number; // >0이면 수용한계를 이 틱 동안 L자(느림→폭발)로 키움(문명사 성장곡선). 0=상수
+  localCap: number; // >0이면 '지역(격자 셀)별' 수용한계 — 한 지역이 차도 빈 지역은 따로 자람(균등 성장). softCap 대신 사용.
   spontaneous: number; // 내재 활동: 매 틱 노드가 스스로 발화 시도할 확률(0=순수 자극반응)
   hormoneProb: number; // 호르몬 분비 확률(0=끔)
   hormoneRelease: number; // 분비 시 mod 증가량
@@ -128,6 +131,7 @@ export const EMERGENT_DEFAULT: EConfig = {
   maxAge: 0, // 기본 불멸(옛 버전 유지) — 시나리오(실시간·창세)에서만 켬
   softCap: 0, // 기본 끔
   softCapRamp: 0, // 기본 상수(램프 없음)
+  localCap: 0, // 기본 끔(글로벌 softCap 사용)
   spontaneous: 0,
   hormoneProb: 0,
   hormoneRelease: 6, // 드물지만 크게 (무작위 이벤트)
@@ -167,6 +171,15 @@ export class EmergentNetwork {
   private bornCount = 0; // step 사이 탄생 수
   private edges = new Set<number>(); // 연결 쌍 O(1) 조회
   private inSum!: Float32Array; // 항상성용 노드별 입력 |w| 합
+  private cellCount = new Int32Array(GLAT * GLON); // 격자 셀별 살아있는 노드 수(로컬 밀도)
+
+  private cellOf(lat: number, lon: number): number {
+    let la = Math.floor((lat + 90) / 10);
+    la = la < 0 ? 0 : la >= GLAT ? GLAT - 1 : la;
+    let lo = Math.floor((lon + 180) / 10) % GLON;
+    if (lo < 0) lo += GLON;
+    return la * GLON + lo;
+  }
 
   private ekey(i: number, j: number): number {
     return i < j ? i * this.cfg.maxNodes + j : j * this.cfg.maxNodes + i;
@@ -225,6 +238,7 @@ export class EmergentNetwork {
     n.immortal = false;
     // 절대 수명 — 개체마다 다르게(0.6~1.4×) 흩어 한꺼번에 안 죽게(자연스러운 턴오버)
     n.maxAge = this.cfg.maxAge > 0 ? this.cfg.maxAge * (0.6 + this.rng() * 0.8) : 0;
+    this.cellCount[this.cellOf(lat, lon)]++;
     this.bornCount++;
     return slot;
   }
@@ -265,6 +279,7 @@ export class EmergentNetwork {
   private killNode(idx: number) {
     const n = this.nodes[idx];
     n.alive = false;
+    this.cellCount[this.cellOf(n.lat, n.lon)]--;
     for (let s = 0; s < this.syns.length; s++) {
       const e = this.syns[s];
       if (e.alive && (e.i === idx || e.j === idx)) this.killSyn(s);
@@ -327,6 +342,14 @@ export class EmergentNetwork {
     return softCap * (p * p * p); // 세제곱 → 느린 시작, 폭발적 끝
   }
 
+  /** 탄생 '속도' 배율 — 로컬 모드(localCap)에서 softCapRamp를 시간 L자 페이스로(밀도 게이트 아님).
+   *  초반 느림 → 후반 전속. 밀도는 로컬 셀이 따로 잡으므로 균등성은 유지된다. */
+  private birthPace(): number {
+    if (this.cfg.localCap <= 0 || this.cfg.softCapRamp <= 0) return 1;
+    const p = Math.min(1, this.tick / this.cfg.softCapRamp);
+    return p * p;
+  }
+
   /** (위도,경도)에 자극. 근처 노드가 있으면 활성, 없으면 새 노드 탄생. */
   injectStimulus(lat: number, lon: number, strength: number) {
     const [x, y, z] = latLonToUnit(lat, lon);
@@ -337,10 +360,16 @@ export class EmergentNetwork {
       n.inj += strength;
       n.lastActive = this.tick;
     } else if (Math.abs(strength) > 0.15) {
-      // 밀도 의존 탄생률 — N이 (램프된) 수용한계에 가까울수록 ↓. softCap=0이면 끔.
-      const cap = this.effSoftCap();
-      const reg = cap > 0 ? 1 - this.aliveNodeIdx.length / cap : 1;
-      if (reg > 0 && this.rng() < this.cfg.birthProb * reg) this.birth(lat, lon, Math.abs(strength));
+      // 밀도 의존 탄생률. localCap>0면 '그 셀'의 밀도로(지역 균등), 아니면 글로벌 (램프된) softCap.
+      let reg: number;
+      if (this.cfg.localCap > 0) {
+        reg = 1 - this.cellCount[this.cellOf(lat, lon)] / this.cfg.localCap;
+      } else {
+        const cap = this.effSoftCap();
+        reg = cap > 0 ? 1 - this.aliveNodeIdx.length / cap : 1;
+      }
+      if (reg > 0 && this.rng() < this.cfg.birthProb * reg * this.birthPace())
+        this.birth(lat, lon, Math.abs(strength));
     }
   }
 
@@ -468,13 +497,19 @@ export class EmergentNetwork {
     }
 
     // 4b) 수상돌기 성장 — 허브(고활력)가 가까이에 자식 노드를 낳음 (밀도 의존 자기조절)
+    const localMode = this.cfg.localCap > 0;
     const gcap = this.effSoftCap();
-    const growReg = gcap > 0 ? Math.max(0, 1 - this.aliveNodeIdx.length / gcap) : 1;
+    const globalGrowReg = gcap > 0 ? Math.max(0, 1 - this.aliveNodeIdx.length / gcap) : 1;
+    const pace = this.birthPace();
     for (let f = 0; f < firedThisStep.length; f++) {
       const i = firedThisStep[f];
       const ni = this.nodes[i];
       if (ni.vitality < 0.45 || ni.deg >= maxDeg) continue;
-      if (this.rng() >= growthProb * growReg || this.freeNodes.length === 0) continue;
+      // 로컬 모드면 부모 셀 밀도로 게이트 → 빽빽한 지역은 더 안 낳음(균등)
+      const gr = localMode
+        ? Math.max(0, 1 - this.cellCount[this.cellOf(ni.lat, ni.lon)] / this.cfg.localCap)
+        : globalGrowReg;
+      if (this.rng() >= growthProb * gr * pace || this.freeNodes.length === 0) continue;
       const ox = ni.x + (this.rng() - 0.5) * growthOffset * 2;
       const oy = ni.y + (this.rng() - 0.5) * growthOffset * 2;
       const oz = ni.z + (this.rng() - 0.5) * growthOffset * 2;

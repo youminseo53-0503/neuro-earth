@@ -95,18 +95,18 @@ export function createGenesisSource(seed = 4242): SignalSource {
 // ── 문명사(genesis-civ) — 인류 문명 성장곡선(L자/하키스틱) ──
 // 초기 인류(핵심 지역, 느림·평탄) → 기차·자동차(지역 확산) → 비행기(대륙간 아치)로 폭발.
 // 자기조절(softCap)과 합쳐져 ~1분에 천장. 슬로우-슬로우-폭발.
-const P1 = 2000; // 노선 등장 시작(기차·자동차) — 그 전엔 걸어다님(노선 없음)
-const P2 = 3000; // 비행기(대륙 간 아치 + 전 지구 글로벌) 시작
-const RAMP_T = 3600; // 성장곡선 램프(엔진 softCapRamp와 일치)
-const PEAK_SPAN = 3600; // 거점 융성 '피크 시점'이 퍼지는 범위(이른 index=고대 요람, 늦은 index=근대)
-const WIDTH = 650; // 각 문명 활동 반치폭(짧을수록 흥망성쇠 뚜렷)
+// 단계 전환은 시간(틱)이 아니라 '망 규모(노드 수)'로 — 작은 문명에 비행기는 안 어울리니까.
+const TRAIN_N = 700; // 이 노드 수부터 기차·자동차(대륙 내 중거리 노선)
+const AIRPLANE_N = 4600; // 이 노드 수부터 비행기(대륙 간 장거리 아치 + 전 지구 폭발)
+const PEAK_SPAN = 6000; // 거점 융성 피크가 퍼지는 틱 범위(활동 중심이 고대 요람→근대로 이동하는 속도)
+const WIDTH = 1100; // 각 문명 활동 반치폭(짧을수록 흥망성쇠 뚜렷)
 
 // 각 거점의 시점별 활동도 — 역사적 융성기를 중심으로 한 bump(+작은 baseline으로 완전 소멸 방지).
 // 시간이 지나며 활동 중심이 고대 요람 → 근대로 이동 → 먼저 뜬 문명이 영원히 압도하지 않음.
 function civActivity(i: number, n: number, tick: number): number {
   const peak = (i / (n - 1)) * PEAK_SPAN;
   const x = (tick - peak) / WIDTH;
-  return Math.exp(-x * x) + 0.04;
+  return Math.exp(-x * x) + 0.15; // 융성 bump + baseline(완만 쇠퇴: 옛 터도 흔적 남고 전체는 누적)
 }
 
 function uvec(lat: number, lon: number): [number, number, number] {
@@ -147,20 +147,34 @@ export function createGenesisCivSource(seed = 4242): SignalSource {
   let regCursor = 0;
   let longCursor = 0;
 
+  // 비행기 시대 글로벌 확산 — FIB 중 '육지 근처'(거점 14° 이내)만(바다엔 안 생기게)
+  const COSL = Math.cos(0.25);
+  const FIB_LAND = FIB.filter(([la, lo]) => {
+    const [x, y, z] = uvec(la, lo);
+    for (let i = 0; i < cu.length; i++) {
+      if (x * cu[i][0] + y * cu[i][1] + z * cu[i][2] > COSL) return true;
+    }
+    return false;
+  });
+
   function jitter(lat: number, lon: number, reach: number, strength: number): StimulusEvent {
     const dLat = (rng() - 0.5) * 2 * reach;
     const dLon = ((rng() - 0.5) * 2 * reach) / Math.max(0.25, Math.cos(lat / DEG));
     return { lat: lat + dLat, lon: lon + dLon, strength };
   }
 
-  const ANCHOR_EVERY = Math.floor(2200 / (CIV_ANCHORS.length + 1)); // 8대 문명 역사순 등장
+  const ANCHOR_EVERY = Math.floor(2600 / (CIV_ANCHORS.length + 1)); // 8대 문명 역사순 등장
   const NC = CORES.length;
   const act = new Array(NC).fill(0); // 거점별 활동도(재사용)
+  let lastN = 0; // observe로 받은 현재 노드 수(단계 전환 기준)
 
   return {
     id: "genesisciv",
     label: "문명사 (초기인류→기차·자동차→비행기 폭발)",
     enabled: true,
+    observe(nodes: number) {
+      lastN = nodes;
+    },
     pollAnchors(tick: number) {
       const out: { lat: number; lon: number; name: string }[] = [];
       while (nextAnchor < CIV_ANCHORS.length && tick >= (nextAnchor + 1) * ANCHOR_EVERY) {
@@ -171,20 +185,22 @@ export function createGenesisCivSource(seed = 4242): SignalSource {
     },
     poll(tick: number): StimulusEvent[] {
       const out: StimulusEvent[] = [];
-      const progress = Math.min(1, tick / RAMP_T);
-      const nPts = 4 + Math.floor(progress * 16); // 초기 적게(느림) → 후기 많이(폭발)
-      // 거점 활동도(역사적 융성 bump) — 활동 중심이 시간 따라 이동
+      const airplane = lastN >= AIRPLANE_N; // 비행기 시대(규모 기준)
+      // 자극 점수: 초기엔 아주 적게(걸음마, 느림) → 규모 커질수록 많이, 비행기 시대엔 폭발
+      const ramp = Math.min(1, tick / PEAK_SPAN);
+      const nPts = airplane ? 12 : 3 + Math.floor(ramp * 5);
+      // 거점 활동도(역사적 융성 bump) — 활동 중심이 고대 요람→근대로 이동
       let total = 0;
       for (let i = 0; i < NC; i++) {
         act[i] = civActivity(i, NC, tick);
         total += act[i];
       }
-      const reach = 3 + progress * 7;
+      const reach = 3 + ramp * 7;
       for (let k = 0; k < nPts; k++) {
-        if (tick > P2 && rng() < 0.4) {
-          // 비행기 시대 — 전 지구 글로벌 fill(연결된 근대 세계)
-          const c = FIB[Math.floor(rng() * FIB.length)];
-          out.push(jitter(c[0], c[1], 13, 0.55));
+        if (airplane && FIB_LAND.length && rng() < 0.55) {
+          // 비행기 시대 — 전 지구(육지) 글로벌 fill(연결된 근대 세계)
+          const c = FIB_LAND[Math.floor(rng() * FIB_LAND.length)];
+          out.push(jitter(c[0], c[1], 12, 0.55));
         } else {
           // 활동도 가중 샘플 — 융성 중인 문명에 자극이 몰림(옛 문명은 자극 끊겨 쇠퇴)
           let r = rng() * total;
@@ -196,10 +212,10 @@ export function createGenesisCivSource(seed = 4242): SignalSource {
       return out;
     },
     pollRoutes(tick: number): RouteEvent[] {
-      // phase1: 노선 없음(걸어다님). phase2: 지역(중거리). phase3: 비행기(장거리·폭발).
-      if (tick < P1 || tick % 14 !== 0) return [];
+      // 규모 기준: 작을 땐 걸어다님(노선 X) → TRAIN_N부터 지역 노선 → AIRPLANE_N부터 대륙간 비행기.
+      if (lastN < TRAIN_N || tick % 14 !== 0) return [];
       const out: RouteEvent[] = [];
-      if (tick < P2) {
+      if (lastN < AIRPLANE_N) {
         if (regional.length === 0) return [];
         for (let k = 0; k < 6; k++) { out.push(regional[regCursor % regional.length]); regCursor++; }
       } else {

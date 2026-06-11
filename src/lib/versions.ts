@@ -48,6 +48,10 @@ export interface VizConfig {
   softCap?: number;
   /** 수용한계를 이 틱 동안 L자(느림→폭발)로 키움(문명사 성장곡선). 0/없음=상수 */
   softCapRamp?: number;
+  /** 지역(격자 셀)별 수용한계 — 한 지역이 차도 빈 지역은 따로 자람(균등 성장). softCap 대신 */
+  localCap?: number;
+  /** 수상돌기 성장 확률 직접 지정(부익부·셀 채우는 속도). 없으면 genesis류 0.05 */
+  growthProb?: number;
   /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
   lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
@@ -244,7 +248,7 @@ export const VERSIONS: VizVersion[] = [
   {
     id: "s-civhistory",
     n: 71,
-    label: "문명사 — 초기인류→기차·자동차→비행기 (L자 폭발)",
+    label: "문명사 — L자 성장 + 흥망성쇠 (전역 밀도)",
     modes: {
       live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
       genesis: genCiv({
@@ -253,6 +257,22 @@ export const VERSIONS: VizVersion[] = [
         lifespan: 900,
         softCap: 6500,
         softCapRamp: 3600,
+        maxNodes: 8000,
+      }),
+    },
+  },
+  {
+    id: "s-civeven",
+    n: 73,
+    label: "문명사 — 지역 균등 성장 (비행기=노드수 기준)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000 }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 22, // 지역(10°셀)별 한계 → 한 곳이 차도 빈 곳은 따로 자람(균등). 비행기=N≥4600
+        softCapRamp: 3600, // 성장 '속도'를 L자로(밀도 게이트 아님) — 초반 느림→후반 전속, 균등 유지
         maxNodes: 8000,
       }),
     },
