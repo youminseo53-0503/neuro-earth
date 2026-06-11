@@ -1,14 +1,37 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Suspense, useMemo, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { EARTH_RADIUS, getSunDirection } from "@/lib/geo";
 import { useViz } from "@/store/useViz";
+import { useUI } from "@/store/useUI";
 import { Earth } from "./Earth";
 import { NeuralLayer } from "./NeuralLayer";
 import { EmergentLayer } from "./EmergentLayer";
 import { GridWaveLayer } from "./GridWaveLayer";
+
+/**
+ * OrbitControls + 자동회전 속도 제어. spin은 매 프레임 바뀌므로 구독하지 않고
+ * useFrame에서 getState()로 읽어 ref에 직접 반영(리렌더 0). 클라이맥스에서 빨라진다.
+ */
+function Controls() {
+  const ref = useRef<React.ComponentRef<typeof OrbitControls>>(null);
+  useFrame(() => {
+    if (ref.current) ref.current.autoRotateSpeed = useUI.getState().spin;
+  });
+  return (
+    <OrbitControls
+      ref={ref}
+      enablePan={false}
+      enableDamping
+      autoRotate
+      autoRotateSpeed={useUI.getState().spin}
+      minDistance={EARTH_RADIUS * 1.6}
+      maxDistance={14}
+    />
+  );
+}
 
 /**
  * 왼쪽 3/4 3D 씬.
@@ -43,14 +66,7 @@ export default function GlobeScene() {
       {/* 그리드 파동(시장) — 독립 레이어, 보라색 */}
       {gridWave && <GridWaveLayer />}
 
-      <OrbitControls
-        enablePan={false}
-        enableDamping
-        autoRotate
-        autoRotateSpeed={0.25}
-        minDistance={EARTH_RADIUS * 1.6}
-        maxDistance={14}
-      />
+      <Controls />
     </Canvas>
   );
 }

@@ -30,6 +30,7 @@ const ATMO_FRAG = /* glsl */ `
  */
 export function Earth() {
   const earthVisible = useUI((s) => s.earthVisible);
+  const climaxEarthOff = useUI((s) => s.climaxEarthOff);
   const showEarth = useViz((s) => s.config.showEarth);
   const cloudsRef = useRef<THREE.Mesh>(null);
 
@@ -43,7 +44,8 @@ export function Earth() {
     if (cloudsRef.current) cloudsRef.current.rotation.y += dt * 0.006;
   });
 
-  if (!earthVisible || !showEarth) return null;
+  // 사용자 토글(earthVisible) 또는 클라이맥스 자동 끄기(climaxEarthOff) 중 하나라도 '끔'이면 지구만 사라짐
+  if (!earthVisible || !showEarth || climaxEarthOff) return null;
 
   return (
     <group>

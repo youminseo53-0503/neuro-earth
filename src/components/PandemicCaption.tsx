@@ -12,7 +12,7 @@ export function PandemicCaption() {
   if (!active) return null;
 
   const pct = Math.round(infectedPct * 100);
-  const frozen = phase === "lockdown" || phase === "frozen";
+  const frozen = phase === "lockdown" || phase === "recovery";
 
   return (
     <div className="pointer-events-none absolute bottom-20 left-1/2 z-20 -translate-x-1/2 select-none text-center">

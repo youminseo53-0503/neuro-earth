@@ -9,9 +9,12 @@ import { PandemicDirector, type PandemicHud } from "@/lib/pandemic";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
-import { useUI } from "@/store/useUI";
+import { useUI, BASE_SPIN } from "@/store/useUI";
 import { useMetrics } from "@/store/useMetrics";
 import { usePandemic } from "@/store/usePandemic";
+
+const GENESIS_SOURCES = ["genesis", "genesisciv", "local"]; // 창세 계열 소스
+const GENESIS_CLIMAX_N = 5000; // 창세가 '다 자란' 최고조(비행기 폭발기 이후)
 
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
@@ -289,11 +292,19 @@ export function EmergentLayer() {
   const director = useRef(new PandemicDirector());
   const setPandemic = usePandemic((s) => s.set);
 
-  // 팬데믹 '멸종' 시네마틱이 아닐 땐 하단 자막 숨김
+  // 팬데믹 '대봉쇄' 시네마틱이 아닐 땐 하단 자막 숨김
   useEffect(() => {
     if (!config.pandemicArc) setPandemic({ active: false });
     return () => setPandemic({ active: false });
   }, [config.pandemicArc, setPandemic]);
+
+  // 언마운트(엔진 전환 등) 시 클라이맥스 연출(지구 끄기·회전 가속) 원복
+  useEffect(() => {
+    return () => {
+      useUI.getState().setClimaxEarthOff(false);
+      useUI.getState().setSpin(BASE_SPIN);
+    };
+  }, []);
 
   // 외부 데이터 refresh
   useEffect(() => {
@@ -332,18 +343,21 @@ export function EmergentLayer() {
 
     const tick = tickRef.current++;
 
-    // 팬데믹 '멸종' 시네마틱 — 엔진을 직접 연출(씨앗·전염률·전부감염·동결)하고 자막/halt 산출
+    // 팬데믹 '대봉쇄' 시네마틱 — 엔진을 직접 연출(씨앗·전염률·전부감염·재유행억제)하고 자막/halt/주입량 산출
     let arc: PandemicHud | null = null;
     if (config.pandemicArc) arc = director.current.update(net);
 
+    // 봉쇄 중엔 주입을 최소로(자극 세기↓, 항공편 일부만) — 교류는 멎되 0은 아님
+    const inject = arc ? arc.injectScale : 1;
     for (const src of sources) {
       if (!src.enabled) continue;
-      if (arc && !arc.injecting) break; // 대봉쇄 — 자극·항공 주입 중단
       src.observe?.(net.metrics.nodes); // 현재 규모를 소스에 알림(문명사: 비행기=N 기준)
-      for (const ev of src.poll(tick)) net.injectStimulus(ev.lat, ev.lon, ev.strength);
+      for (const ev of src.poll(tick)) net.injectStimulus(ev.lat, ev.lon, ev.strength * inject);
       if (src.pollRoutes) {
-        for (const rt of src.pollRoutes(tick))
+        for (const rt of src.pollRoutes(tick)) {
+          if (inject < 1 && Math.random() > inject) continue; // 최소 운항 — 일부 항공편만 띄움
           net.injectRoute(rt.latA, rt.lonA, rt.latB, rt.lonB, rt.weight);
+        }
       }
       if (config.civAnchors && src.pollAnchors) {
         for (const a of src.pollAnchors(tick)) net.birthAnchor(a.lat, a.lon); // 8대 문명 영속 앵커
@@ -358,6 +372,14 @@ export function EmergentLayer() {
     drawNodes(mesh, net.nodes, config, NODE_LV, color, dummy);
     drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir);
     drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt);
+
+    // 클라이맥스 — 팬데믹 대봉쇄 OR 창세가 다 자람 → 지구 자동 끄기 + 회전 점점 빠르게
+    const genesisGrown =
+      config.sources.some((s) => GENESIS_SOURCES.includes(s)) && net.metrics.nodes >= GENESIS_CLIMAX_N;
+    const climax = (arc?.climax ?? false) || genesisGrown;
+    const ui = useUI.getState();
+    ui.setSpin(THREE.MathUtils.lerp(ui.spin, climax ? 1.4 : BASE_SPIN, 0.02));
+    ui.setClimaxEarthOff(climax);
 
     if (arc && frameRef.current % 6 === 0) {
       setPandemic({ active: true, phase: arc.phase, dateLabel: arc.dateLabel, caption: arc.caption, infectedPct: arc.infectedPct });

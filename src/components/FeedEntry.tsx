@@ -44,7 +44,8 @@ export function FeedEntry({
           <div className="mb-2 text-[12px] text-amber-100/70">{msg.text}</div>
           <div className="flex flex-col gap-1">
             {msg.options?.map((o) => {
-              const sel = o === msg.chosen;
+              // 정확히 일치 OR 커스텀 답이 이 옵션을 품고 있으면 선택으로 본다(부분 채택)
+              const sel = o === msg.chosen || (msg.chosen?.includes(o) ?? false);
               return (
                 <div
                   key={o}
@@ -59,6 +60,12 @@ export function FeedEntry({
                 </div>
               );
             })}
+            {/* 보기에 없는 '직접 입력(other)' 답 — 선택 안 한 것처럼 사라지지 않게 또렷이 */}
+            {msg.chosen && !msg.options?.includes(msg.chosen) && (
+              <div className="mt-0.5 rounded px-2 py-1 text-[12px] bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/45">
+                ✎ 직접 적음 — {msg.chosen}
+              </div>
+            )}
           </div>
         </div>
       </div>

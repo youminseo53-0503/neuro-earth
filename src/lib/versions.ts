@@ -322,7 +322,7 @@ export const VERSIONS: VizVersion[] = [
   {
     id: "p-extinct",
     n: 77,
-    label: "팬데믹 — 대봉쇄·멸종 (2019.12→2021)",
+    label: "팬데믹 — 대봉쇄 (2019.12→2021)",
     config: { ...PANDEMIC_BASE, pandemicArc: true },
   },
 ];

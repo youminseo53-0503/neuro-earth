@@ -174,7 +174,8 @@ export class EmergentNetwork {
   nodes: ENode[];
   syns: ESyn[];
   tick = 0;
-  frozen = false; // 대봉쇄 — true면 활동·발화·생멸 정지(팬데믹 멸종 클라이맥스). 활동만 사그라들고 그 자리에 언다
+  frozen = false; // 대봉쇄 — true면 활동·발화·생멸 정지(완전 동결). 활동만 사그라들고 그 자리에 언다
+  suppressReseed = false; // true면 감염자 0이어도 자동 재유행 안 함(시네마틱 디렉터가 씨앗을 직접 통제)
   metrics: EMetrics = { tick: 0, nodes: 0, synapses: 0, firing: 0, births: 0, deaths: 0, hormone: 0 };
 
   private rng: () => number;
@@ -633,8 +634,8 @@ export class EmergentNetwork {
         if (++nd.infT > immuneTicks) { nd.inf = 0; nd.infT = 0; }
       }
     }
-    // 씨앗 — 감염자 0이면 우한에서 새 파동(변이)
-    if (infected === 0 && this.aliveNodeIdx.length > 20) this.seedInfection(30.6, 114.3);
+    // 씨앗 — 감염자 0이면 우한에서 새 파동(변이). 디렉터가 통제할 땐(suppressReseed) 끔.
+    if (infected === 0 && !this.suppressReseed && this.aliveNodeIdx.length > 20) this.seedInfection(30.6, 114.3);
   }
 
   /** 대봉쇄 — 모든 활동이 멈춘 정지 상태. 발화·생멸 없이 활동만 사그라들고 노드는 그 자리에 언다. */
