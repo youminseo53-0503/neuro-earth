@@ -64,6 +64,8 @@ export interface PlasticityConfig {
   refractoryTicks: number;
   /** 노드별 입력 가중치 |합| 정규화 목표(시냅스 스케일링) */
   targetDrive: number;
+  /** 시간축 가지치기: 안 쓰인 시냅스를 더 빨리 시들게 + 죽은 건 재팽창에서 제외(약한 길이 진짜 사라짐) */
+  decayPrune: boolean;
   seed: number;
 }
 
@@ -80,6 +82,7 @@ export const DEFAULT_CONFIG: PlasticityConfig = {
   jitter: 4,
   refractoryTicks: 4,
   targetDrive: 1.8,
+  decayPrune: false,
   seed: 20260611,
 };
 
@@ -184,14 +187,31 @@ export class PlasticityNetwork {
 
   /** 노드별 incoming |w| 합을 targetDrive로 맞춤 (항상성) */
   private normalize() {
-    const { targetDrive } = this.cfg;
+    const { targetDrive, decayPrune } = this.cfg;
+    const DEAD = 0.02; // 이 아래는 '죽은' 시냅스
     for (let j = 0; j < this.nodes.length; j++) {
       const inc = this.incoming[j];
-      let sum = 0;
-      for (let n = 0; n < inc.length; n++) sum += Math.abs(this.synapses[inc[n]].w);
-      if (sum > 1e-6) {
-        const f = targetDrive / sum;
-        for (let n = 0; n < inc.length; n++) this.synapses[inc[n]].w *= f;
+      if (decayPrune) {
+        // 죽은 시냅스(거의 0)는 재팽창에서 제외 → 안 쓰인 길은 진짜 사라지고, 산 길만 예산을 나눠 가짐
+        let aliveSum = 0;
+        for (let n = 0; n < inc.length; n++) {
+          const w = Math.abs(this.synapses[inc[n]].w);
+          if (w >= DEAD) aliveSum += w;
+        }
+        if (aliveSum > 1e-6) {
+          const f = targetDrive / aliveSum;
+          for (let n = 0; n < inc.length; n++) {
+            const e = this.synapses[inc[n]];
+            if (Math.abs(e.w) >= DEAD) e.w *= f; // 죽은 건 그대로 계속 시듦
+          }
+        }
+      } else {
+        let sum = 0;
+        for (let n = 0; n < inc.length; n++) sum += Math.abs(this.synapses[inc[n]].w);
+        if (sum > 1e-6) {
+          const f = targetDrive / sum;
+          for (let n = 0; n < inc.length; n++) this.synapses[inc[n]].w *= f;
+        }
       }
     }
   }
@@ -213,7 +233,7 @@ export class PlasticityNetwork {
 
   /** 한 틱: 전파 → 발화/불응 → 헤브 가소성 → 시냅스 스케일링 → 지표 */
   step() {
-    const { decay, wMax, ltp, ltd, prune, refractoryTicks } = this.cfg;
+    const { decay, wMax, ltp, ltd, prune, refractoryTicks, decayPrune } = this.cfg;
     const nodes = this.nodes;
     const syn = this.synapses;
     const N = nodes.length;
@@ -231,7 +251,9 @@ export class PlasticityNetwork {
       } else {
         e.act *= 0.8; // 안 지나면 빠르게 식음 → idle은 사라짐
       }
-      e.w *= 1 - prune;
+      // 시간축 가지치기: 쓰인 길(e.act 큼)은 안 깎고, 안 쓰인 길은 4배 빨리 시들게 → use-it-or-lose-it
+      if (decayPrune) e.w *= e.act > 0.5 ? 1 : 1 - prune * 4;
+      else e.w *= 1 - prune;
     }
 
     // 2) 활성 갱신 + 발화/불응
