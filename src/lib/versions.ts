@@ -32,6 +32,8 @@ export interface VizConfig {
   fatigue?: boolean;
   /** 항상성(평준화) — 입력 정규화로 폭주·쏠림 방지 */
   homeo?: boolean;
+  /** 그리드 파동 레이어 — 고정 인프라 위 시장 파동(보라), 항공망과 독립 */
+  gridWave?: boolean;
 }
 
 export interface VizVersion {
@@ -179,6 +181,25 @@ export const VERSIONS: VizVersion[] = [
       hormone: true,
       fatigue: true,
       homeo: true,
+    },
+  },
+  {
+    id: "v-dual",
+    n: 45,
+    label: "이중 신경계 — 항공(이동) + 시장 파동(여론)",
+    config: {
+      showEarth: true,
+      showNet: true,
+      colorMode: "act",
+      jitter: 4,
+      sources: ["flightslive"],
+      gain: 1,
+      engine: "emergent",
+      intrinsic: true,
+      hormone: true,
+      fatigue: true,
+      homeo: true,
+      gridWave: true,
     },
   },
 ];

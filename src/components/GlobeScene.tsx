@@ -8,6 +8,7 @@ import { useViz } from "@/store/useViz";
 import { Earth } from "./Earth";
 import { NeuralLayer } from "./NeuralLayer";
 import { EmergentLayer } from "./EmergentLayer";
+import { GridWaveLayer } from "./GridWaveLayer";
 
 /**
  * 왼쪽 3/4 3D 씬.
@@ -18,6 +19,7 @@ export default function GlobeScene() {
   // 실시간 낮밤: 태양 직하점 방향에 directional light
   const sun = useMemo(() => getSunDirection(), []);
   const engine = useViz((s) => s.config.engine ?? "grid");
+  const gridWave = useViz((s) => s.config.gridWave ?? false);
 
   return (
     <Canvas camera={{ position: [0, 0, 6], fov: 45 }} dpr={[1, 2]}>
@@ -38,6 +40,8 @@ export default function GlobeScene() {
 
       {/* 신경 가소성 망 — 지구를 꺼도 남는다 (엔진은 버전 설정) */}
       {engine === "emergent" ? <EmergentLayer /> : <NeuralLayer />}
+      {/* 그리드 파동(시장) — 독립 레이어, 보라색 */}
+      {gridWave && <GridWaveLayer />}
 
       <OrbitControls
         enablePan={false}

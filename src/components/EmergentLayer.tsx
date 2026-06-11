@@ -13,7 +13,7 @@ import { useMetrics } from "@/store/useMetrics";
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
 const SYN_CAP = 7000;
-const NODE_LV = [0.3, 0.55, 0.9, 1.35, 1.9]; // 이산 노드 크기 레벨(명확히 구분)
+const NODE_LV = [0.2, 0.34, 0.5, 0.68, 0.9]; // 이산 노드 크기 레벨(작게, max가 기존 3레벨)
 const THICK_BASE = 0.0042; // 선 굵기 기준
 const ROUTE_CAP = 700;
 const ARC_SEG = 18;
