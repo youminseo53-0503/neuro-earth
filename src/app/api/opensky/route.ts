@@ -82,6 +82,7 @@ const AIRPORTS: { icao: string; lat: number; lon: number }[] = [
 
 let tokenCache: { token: string; exp: number } | null = null;
 let lastGood: { body: string; at: number } | null = null;
+let lastTokenError: unknown = null; // 진단용 — 마지막 토큰 실패 원인
 
 async function getToken(): Promise<string | null> {
   if (tokenCache && Date.now() < tokenCache.exp) return tokenCache.token;
@@ -111,12 +112,20 @@ async function getToken(): Promise<string | null> {
     return tokenCache.token;
   } catch (e) {
     // 연결 자체 실패(fetch failed 등) — 던지지 말고 null 반환(라우트는 stale/시뮬로 폴백). 원인은 로깅.
-    console.error("opensky token fetch failed:", (e as Error)?.cause ?? e);
+    const err = e as Error & { cause?: { code?: string; errno?: number } };
+    lastTokenError = {
+      name: err?.name,
+      message: err?.message,
+      cause: String(err?.cause ?? ""),
+      code: err?.cause?.code,
+    };
+    console.error("opensky token fetch failed:", lastTokenError);
     return null;
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const debug = new URL(req.url).searchParams.has("debug");
   const serveStale = () =>
     lastGood
       ? new Response(lastGood.body, {
@@ -132,7 +141,11 @@ export async function GET() {
   }
 
   const token = await getToken();
-  if (!token) return serveStale() ?? new Response("no token (env?)", { status: 502 });
+  if (!token) {
+    if (debug) return Response.json({ ok: false, hasEnv: !!process.env.OPENSKY_CLIENT_ID, lastTokenError });
+    return serveStale() ?? new Response("no token (env?)", { status: 502 });
+  }
+  if (debug) return Response.json({ ok: true, gotToken: true });
 
   try {
     const res = await osFetch(STATES_URL, { headers: { authorization: `Bearer ${token}` } });
