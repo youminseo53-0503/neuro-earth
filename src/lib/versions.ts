@@ -434,7 +434,9 @@ export const VERSIONS: VizVersion[] = [
     n: 97,
     label: "통합 — 실시간·창세·팬데믹·외상 (한 버전·자동순환)",
     modes: {
-      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true }),
+      // 라이브 — 지역별 수용한계(localCap)로 한 지역이 다 못 먹게. 실제 항공 분포(미국·유럽·아시아)를
+      // 충실히 반영(전엔 부익부로 다 유럽에 쏠려 '전 세계가 유럽으로' 가던 왜곡 → 교정).
+      live: live({ mortal: true, lifespan: 900, localCap: 70, areaCap: true, maxNodes: 8000, exhibit: true }),
       genesis: genCiv({
         mortal: true,
         civAnchors: true,
