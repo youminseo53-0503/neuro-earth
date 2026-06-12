@@ -23,7 +23,7 @@ export function BriefingPanel() {
   const b = BRIEFINGS[key];
 
   return (
-    <div className="pointer-events-none absolute bottom-4 right-4 z-20 w-[clamp(340px,24vw,480px)] max-w-[44vw] select-none">
+    <div className="pointer-events-none absolute bottom-4 right-4 z-20 hidden w-[clamp(340px,24vw,480px)] max-w-[44vw] select-none lg:block">
       <div className="pointer-events-auto overflow-hidden rounded-lg border border-neon-cyan/25 bg-black/70 backdrop-blur-sm">
         {/* 헤더 */}
         <button

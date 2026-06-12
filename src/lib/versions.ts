@@ -64,6 +64,9 @@ export interface VizConfig {
   civAnchors?: boolean;
   /** 항공 노선 아치를 출발→도착으로 점진적으로 그림(한 번에 팍 X) */
   routeGrow?: boolean;
+  /** 자동재생(전시 모드) 지원 — 시나리오 자동순환 + 카메라 무빙 + 클라이맥스 연출(v27+).
+   *  옛 버전은 끔 → 자동순환·카메라가 과거 버전 화면을 건드리지 않는다(미래가 과거 안 바꿈) */
+  exhibit?: boolean;
 }
 
 /** 단계를 보는 방식 — 직각 축 */
@@ -324,6 +327,45 @@ export const VERSIONS: VizVersion[] = [
     n: 77,
     label: "팬데믹 — 대봉쇄 (2019.12→2021)",
     config: { ...PANDEMIC_BASE, pandemicArc: true },
+  },
+
+  // ── 27 자동재생(전시 모드) — 시나리오 자동순환 + 카메라 무빙 + 클라이맥스 연출 ──
+  {
+    id: "s-exhibit",
+    n: 88,
+    label: "자동재생 — 전시 모드 (순환·카메라 무빙)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 30,
+        areaCap: true,
+        softCapRamp: 3600,
+        maxNodes: 8000,
+        exhibit: true,
+      }),
+    },
+  },
+  // ── 28 모바일 친화 — 폰/아이패드 대응(바텀시트·QR). 시뮬은 27과 동일, 마일스톤 표석 ──
+  {
+    id: "s-mobile",
+    n: 89,
+    label: "모바일 — 폰·아이패드 (바텀시트·QR)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 30,
+        areaCap: true,
+        softCapRamp: 3600,
+        maxNodes: 8000,
+        exhibit: true,
+      }),
+    },
   },
 ];
 

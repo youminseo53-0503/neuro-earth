@@ -26,7 +26,10 @@ export function ExhibitionController() {
   useEffect(() => {
     const id = setInterval(() => {
       if (!useExhibition.getState().auto) return;
-      const { mode, versionId, setMode, setVersion } = useViz.getState();
+      const { mode, versionId, setMode, setVersion, config } = useViz.getState();
+      // 자동재생은 v27(전시 모드)부터 — 옛 버전 화면은 자동순환이 건드리지 않는다.
+      // (팬데믹 중엔 디렉터의 '오늘→실시간' 핸드오프가 순환을 이어줌)
+      if (!config.exhibit && !config.pandemicArc) return;
       const now = Date.now();
       const cur = isPandemicVersion(versionId)
         ? "pandemic"

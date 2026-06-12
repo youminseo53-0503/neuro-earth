@@ -1,6 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+
+/** 모바일 뷰포트 — 풀스크린 캔버스 앱. 노치까지 덮고(cover), 더블탭 줌 방지(궤도 드래그와 충돌). */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#050810",
+  colorScheme: "dark",
+};
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

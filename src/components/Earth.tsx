@@ -5,8 +5,13 @@ import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { EARTH_RADIUS } from "@/lib/geo";
+import { isPhone } from "@/lib/device";
 import { useUI } from "@/store/useUI";
 import { useViz } from "@/store/useViz";
+
+// 모바일은 구 세그먼트를 낮춰 정점 수 ~55% 절감(카메라 거리상 화질 체감 없음)
+const SEG_BODY = isPhone() ? 64 : 96;
+const SEG_SUB = isPhone() ? 48 : 64;
 
 const ATMO_VERT = /* glsl */ `
   varying vec3 vNormal;
@@ -49,7 +54,7 @@ export function Earth() {
     <group>
       {/* 본체 */}
       <mesh>
-        <sphereGeometry args={[EARTH_RADIUS, 96, 96]} />
+        <sphereGeometry args={[EARTH_RADIUS, SEG_BODY, SEG_BODY]} />
         <meshStandardMaterial
           map={dayMap}
           roughnessMap={specMap}
@@ -62,7 +67,7 @@ export function Earth() {
 
       {/* 구름 */}
       <mesh ref={cloudsRef} scale={1.012}>
-        <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
+        <sphereGeometry args={[EARTH_RADIUS, SEG_SUB, SEG_SUB]} />
         <meshStandardMaterial
           map={cloudsMap}
           transparent
@@ -73,7 +78,7 @@ export function Earth() {
 
       {/* 대기광 (Fresnel rim) */}
       <mesh scale={1.16}>
-        <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
+        <sphereGeometry args={[EARTH_RADIUS, SEG_SUB, SEG_SUB]} />
         <shaderMaterial
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}

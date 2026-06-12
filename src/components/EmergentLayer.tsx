@@ -7,6 +7,7 @@ import { EmergentNetwork, type ENode, type ESyn, type EConfig } from "@/lib/emer
 import type { VizConfig } from "@/lib/versions";
 import { PandemicDirector, type PandemicHud } from "@/lib/pandemic";
 import { EARTH_RADIUS } from "@/lib/geo";
+import { isPhone } from "@/lib/device";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
 import { useUI, BASE_SPIN } from "@/store/useUI";
@@ -19,7 +20,8 @@ const GENESIS_CLIMAX_N = 5000; // 창세가 '다 자란' 최고조(비행기 폭
 
 const SURF = EARTH_RADIUS * 1.014;
 const NODE_SIZE = 0.014;
-const SYN_CAP = 12000; // 시냅스 실린더 렌더 상한(노드 6000까지 커버)
+// 시냅스 실린더 렌더 상한 — 모바일은 절반(렌더 전용 캡, 엔진 동역학 무관)
+const SYN_CAP = isPhone() ? 6000 : 12000;
 const NODE_LV_BIG = [0.3, 0.55, 0.9, 1.35, 1.9]; // 옛 버전 — 큰 공(명확히 구분)
 const NODE_LV_SMALL = [0.2, 0.34, 0.5, 0.68, 0.9]; // '줄여!' 이후 버전 — 작은 공(선이 주인공)
 const THICK_BASE = 0.0033; // 선 굵기 기준(한 단계 얇게)
@@ -121,7 +123,7 @@ function drawSynapses(
   dir: THREE.Vector3,
 ) {
   let c = 0;
-  for (let s = 0; s < syns.length; s++) {
+  for (let s = 0; s < syns.length && c < SYN_CAP; s++) {
     const e = syns[s];
     if (!e.alive || e.route) continue;
     const a = nodes[e.i];
@@ -385,16 +387,18 @@ export function EmergentLayer() {
     drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir);
     drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt);
 
-    // 클라이맥스 — 팬데믹 대봉쇄 OR 창세가 다 자람 → 지구 자동 끄기 + 회전 점점 빠르게
+    // 클라이맥스/카메라 연출은 자동재생 버전(v27+, exhibit)부터 — 옛 버전 화면은 안 건드림.
+    // 팬데믹(v26)은 자체 시네마틱(pandemicArc)이라 exhibit 무관하게 그대로.
+    const exhibit = config.exhibit ?? false;
     const genesisScenario = config.sources.some((s) => GENESIS_SOURCES.includes(s));
-    const genesisGrown = genesisScenario && net.metrics.nodes >= GENESIS_CLIMAX_N;
+    const genesisGrown = exhibit && genesisScenario && net.metrics.nodes >= GENESIS_CLIMAX_N;
     const climax = (arc?.climax ?? false) || genesisGrown;
     const ui = useUI.getState();
     ui.setSpin(THREE.MathUtils.lerp(ui.spin, climax ? 1.4 : BASE_SPIN, 0.02));
-    // 카메라 — 팬데믹은 항상 단계별 스크립트 연출 / 라이브·창세는 자동순환 모드일 때만 무빙
+    // 카메라 — 팬데믹은 항상 단계별 스크립트 연출 / 라이브·창세는 전시 모드+자동일 때만 무빙
     let camDist = 0;
     if (arc) camDist = arc.camDist;
-    else if (useExhibition.getState().auto) {
+    else if (exhibit && useExhibition.getState().auto) {
       camDist = genesisScenario
         ? 4.6 + Math.min(1, net.metrics.nodes / 6000) * 4.4 // 창세: 자랄수록 줌아웃(4.6→9)
         : 6 + Math.sin(frameRef.current * 0.0016) * 0.8;     // 라이브: 느린 호흡(push-in/pull-back)

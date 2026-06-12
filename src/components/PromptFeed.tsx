@@ -3,14 +3,17 @@
 import { timeline } from "@/data/timeline";
 import { useUI } from "@/store/useUI";
 import { FeedEntry } from "./FeedEntry";
+import { QrBadge } from "./QrBadge";
 
-export function PromptFeed() {
+/** compact: 모바일 바텀시트 안에서 렌더될 때 — 시트가 자체 헤더를 가지므로 헤더 생략 */
+export function PromptFeed({ compact = false }: { compact?: boolean }) {
   const { earthVisible, toggleEarth } = useUI();
   const pairCount = new Set(timeline.map((m) => m.n)).size;
 
   return (
     <div className="flex h-full flex-col bg-[#070b16]">
-      {/* 헤더 */}
+      {/* 헤더 (데스크탑 사이드 패널 전용) */}
+      {!compact && (
       <header className="flex items-center justify-between gap-2 border-b border-panel-border px-4 py-3">
         <div className="min-w-0">
           <h1 className="truncate font-mono text-[clamp(14px,1.05vw,22px)] font-bold tracking-tight text-white">
@@ -23,13 +26,17 @@ export function PromptFeed() {
             ※ 민서 발화는 맞춤법·오타를 일부 다듬음
           </p>
         </div>
-        <button
-          onClick={toggleEarth}
-          className="shrink-0 rounded-lg border border-panel-border px-2.5 py-1.5 text-[clamp(11px,0.8vw,16px)] font-semibold text-white/70 transition hover:border-neon-cyan/50 hover:text-neon-cyan"
-        >
-          {earthVisible ? "지구 끄기" : "지구 켜기"}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <QrBadge />
+          <button
+            onClick={toggleEarth}
+            className="shrink-0 rounded-lg border border-panel-border px-2.5 py-1.5 text-[clamp(11px,0.8vw,16px)] font-semibold text-white/70 transition hover:border-neon-cyan/50 hover:text-neon-cyan"
+          >
+            {earthVisible ? "지구 끄기" : "지구 켜기"}
+          </button>
+        </div>
       </header>
+      )}
 
       {/* 피드 (카톡식, 위 → 아래) */}
       <div className="feed-scroll flex-1 space-y-4 overflow-y-auto px-4 py-5">

@@ -4,6 +4,7 @@ import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { EARTH_RADIUS, getSunDirection } from "@/lib/geo";
+import { isPhone } from "@/lib/device";
 import { useViz } from "@/store/useViz";
 import { useUI } from "@/store/useUI";
 import { Earth } from "./Earth";
@@ -19,12 +20,14 @@ import { GridWaveLayer } from "./GridWaveLayer";
  */
 function Controls() {
   const ref = useRef<React.ComponentRef<typeof OrbitControls>>(null);
+  const lastUser = useRef(0); // 사용자가 직접 드래그/핀치한 마지막 시각
   useFrame(() => {
     const c = ref.current;
     if (!c) return;
     c.autoRotateSpeed = useUI.getState().spin;
     const cd = useUI.getState().camDist;
-    if (cd > 0) {
+    // 사용자 조작 후 15초는 돌리 연출이 카메라를 안 뺏는다(특히 모바일 핀치줌과 싸움 방지)
+    if (cd > 0 && Date.now() - lastUser.current > 15_000) {
       const cam = c.object;
       const off = cam.position.clone().sub(c.target);
       const cur = off.length() || 1;
@@ -41,6 +44,7 @@ function Controls() {
       autoRotateSpeed={useUI.getState().spin}
       minDistance={EARTH_RADIUS * 1.6}
       maxDistance={14}
+      onStart={() => (lastUser.current = Date.now())}
     />
   );
 }
@@ -55,9 +59,15 @@ export default function GlobeScene() {
   const sun = useMemo(() => getSunDirection(), []);
   const engine = useViz((s) => s.config.engine ?? "grid");
   const gridWave = useViz((s) => s.config.gridWave ?? false);
+  // 모바일 — 렌더 품질만 낮춰 중급 폰에서도 끊김 없이(dpr·전력 정책. 동역학 무관)
+  const mobile = useMemo(() => isPhone(), []);
 
   return (
-    <Canvas camera={{ position: [0, 0, 6], fov: 45 }} dpr={[1, 2]}>
+    <Canvas
+      camera={{ position: [0, 0, 6], fov: 45 }}
+      dpr={mobile ? [1, 1.5] : [1, 2]}
+      gl={{ powerPreference: mobile ? "low-power" : "high-performance", antialias: !mobile }}
+    >
       <color attach="background" args={["#050810"]} />
 
       <ambientLight intensity={0.18} />

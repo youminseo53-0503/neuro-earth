@@ -27,28 +27,39 @@ export function VersionRemote() {
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  // 접힌 상태 — 가장자리 작은 탭
+  // 접힌 상태 — 데스크탑: 좌측 엣지 탭 / 모바일: 우상단 작은 칩
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="absolute left-0 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1.5 rounded-r-lg border border-l-0 border-panel-border bg-black/70 py-2 pl-2 pr-2.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm transition hover:border-neon-cyan/50 hover:text-neon-cyan"
-        title="버전 타임라인 열기"
-      >
-        🕹️ 버전
-        {curIdx >= 0 && (
-          <span className="font-mono text-neon-green">
-            {String(curIdx).padStart(2, "0")}
-          </span>
-        )}
-        <span className="text-white/30">▸</span>
-      </button>
+      <>
+        <button
+          onClick={() => setOpen(true)}
+          className="absolute left-0 top-1/2 z-20 hidden -translate-y-1/2 items-center gap-1.5 rounded-r-lg border border-l-0 border-panel-border bg-black/70 py-2 pl-2 pr-2.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm transition hover:border-neon-cyan/50 hover:text-neon-cyan lg:flex"
+          title="버전 타임라인 열기"
+        >
+          🕹️ 버전
+          {curIdx >= 0 && (
+            <span className="font-mono text-neon-green">
+              {String(curIdx).padStart(2, "0")}
+            </span>
+          )}
+          <span className="text-white/30">▸</span>
+        </button>
+        <button
+          onClick={() => setOpen(true)}
+          className="absolute right-3 top-3 z-20 rounded-full border border-panel-border bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm lg:hidden"
+          title="버전 타임라인 열기"
+        >
+          🕹️ v{curIdx >= 0 ? String(curIdx).padStart(2, "0") : "—"}
+        </button>
+      </>
     );
   }
 
-  // 펼친 상태 — 스크롤되는 컴팩트 리스트
+  // 펼친 상태 — 데스크탑: 좌측 패널 / 모바일: 중앙 팝오버(+백드롭, 밖 탭=닫기)
   return (
-    <div className="absolute left-0 top-1/2 z-20 flex max-h-[82vh] w-52 -translate-y-1/2 flex-col rounded-r-lg border border-l-0 border-panel-border bg-black/80 backdrop-blur-sm">
+    <>
+    <div className="absolute inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />
+    <div className="absolute z-30 flex flex-col border border-panel-border bg-black/85 backdrop-blur-sm max-lg:inset-x-4 max-lg:top-14 max-lg:max-h-[62dvh] max-lg:rounded-xl lg:left-0 lg:top-1/2 lg:max-h-[82vh] lg:w-52 lg:-translate-y-1/2 lg:rounded-r-lg lg:border-l-0 lg:bg-black/80">
       <div className="flex items-center justify-between border-b border-panel-border px-3 py-2">
         <span className="text-[11px] font-bold text-white/70">🕹️ 버전 타임라인</span>
         <button
@@ -75,5 +86,6 @@ export function VersionRemote() {
         ))}
       </div>
     </div>
+    </>
   );
 }

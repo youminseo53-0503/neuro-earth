@@ -45,7 +45,8 @@ export function HUD() {
         )
       )}
 
-      <div className="mt-3 space-y-0.5 rounded-md border border-panel-border bg-black/40 px-3 py-2 backdrop-blur-sm">
+      {/* 상세 수치 — 모바일에선 숨김(제목+모드 배지만 남겨 지구가 주인공) */}
+      <div className="mt-3 hidden space-y-0.5 rounded-md border border-panel-border bg-black/40 px-3 py-2 backdrop-blur-sm lg:block">
         {engine === "emergent" ? (
           <>
             <Row label="tick" value={e ? e.tick.toLocaleString() : "—"} />
