@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BRIEFINGS, type Briefing } from "@/lib/briefings";
-import { isPandemicVersion } from "@/lib/versions";
+import { isPandemicView } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
 import { useIdle } from "@/store/useIdle";
 
@@ -17,7 +17,7 @@ export function BriefingPanel() {
   const idle = useIdle((s) => s.idle);
   const [open, setOpen] = useState(true);
 
-  const key: Briefing["key"] = isPandemicVersion(versionId)
+  const key: Briefing["key"] = isPandemicView(versionId, mode)
     ? "pandemic"
     : mode === "genesis"
       ? "genesis"

@@ -75,7 +75,7 @@ export interface VizConfig {
 }
 
 /** 단계를 보는 방식 — 직각 축 */
-export type ViewMode = "live" | "genesis";
+export type ViewMode = "live" | "genesis" | "pandemic";
 
 export interface VizVersion {
   id: string;
@@ -84,8 +84,8 @@ export interface VizVersion {
   label: string;
   /** 옛 단일 버전(0-15) */
   config?: VizConfig;
-  /** 시나리오 단계(16+) — 창세·실시간 두 모드를 다 가짐 */
-  modes?: Record<ViewMode, VizConfig>;
+  /** 시나리오 단계(16+) — 실시간·창세(+통합 버전은 팬데믹까지). 버전마다 가진 모드만 둔다. */
+  modes?: Partial<Record<ViewMode, VizConfig>>;
 }
 
 // ── 시나리오 단계의 모드 베이스 ──
@@ -423,6 +423,28 @@ export const VERSIONS: VizVersion[] = [
     label: "팬데믹 — 단절·재배선 (대봉쇄에 끊기고 더디게 재연결)",
     config: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true },
   },
+  // ── 32 통합 — 한 버전 안에서 실시간·창세·팬데믹을 모드로 전환 + 자동순환 ──
+  //     팬데믹을 별도 라인이 아니라 '세 번째 모드'로 품는다(버튼 눌러도 버전 점프 없음).
+  //     자동순환은 live→genesis→pandemic을 한 버전 안에서 돈다. 옛 버전은 그대로(과거 안 바꿈).
+  {
+    id: "s-unified",
+    n: 97,
+    label: "통합 — 실시간·창세·팬데믹 (한 버전·자동순환)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 30,
+        areaCap: true,
+        softCapRamp: 3600,
+        maxNodes: 8000,
+        exhibit: true,
+      }),
+      pandemic: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true, exhibit: true },
+    },
+  },
 ];
 
 // 기본 진입점 = 마지막 '단계(staged)' 버전(s-civarea). 팬데믹은 별도 라인이라 기본값으로 안 잡음.
@@ -433,15 +455,33 @@ export const LATEST: VizVersion =
 export const LATEST_PANDEMIC: VizVersion | undefined =
   [...VERSIONS].reverse().find((v) => v.config?.pandemic);
 
-/** 이 버전이 팬데믹 라인인지(하단 바 활성·HUD 배지 판정) */
+/** 이 버전이 팬데믹 '라인'(독립 config 버전 25/26/31)인지 */
 export function isPandemicVersion(id: string): boolean {
   const v = VERSIONS.find((x) => x.id === id);
   return !!v?.config?.pandemic;
 }
 
-/** 버전 + 모드 → 실제 config. 옛 버전은 모드 무관 단일 config. */
+/** 지금 화면이 팬데믹인지 — 팬데믹 모드이거나(통합 버전), 팬데믹 라인 버전이거나 */
+export function isPandemicView(versionId: string, mode: string): boolean {
+  return mode === "pandemic" || isPandemicVersion(versionId);
+}
+
+/** 그 버전이 가진 모드 목록(없으면 빈 배열 = 옛 단일/팬데믹 라인 버전) */
+export function modesOf(v: VizVersion | undefined): ViewMode[] {
+  return v?.modes ? (Object.keys(v.modes) as ViewMode[]) : [];
+}
+
+/** 그 버전이 자동순환(전시)을 지원하는지 — 어떤 모드든 exhibit이면 */
+export function supportsAuto(v: VizVersion | undefined): boolean {
+  if (!v) return false;
+  if (v.modes) return Object.values(v.modes).some((c) => c?.exhibit);
+  return !!v.config?.exhibit;
+}
+
+/** 버전 + 모드 → 실제 config. 옛 버전은 모드 무관 단일 config. 그 모드가 없으면 live로 폴백. */
 export function configFor(v: VizVersion, mode: ViewMode): VizConfig {
-  return v.modes ? v.modes[mode] : v.config!;
+  if (!v.modes) return v.config!;
+  return v.modes[mode] ?? v.modes.live ?? v.modes.genesis!;
 }
 
 /** timeline 항목 번호 → 그 항목에 달린 버전(있으면) */

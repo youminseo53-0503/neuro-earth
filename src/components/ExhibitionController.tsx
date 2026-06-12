@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useViz } from "@/store/useViz";
 import { useMetrics } from "@/store/useMetrics";
 import { useExhibition } from "@/store/useExhibition";
-import { isPandemicVersion, LATEST_PANDEMIC } from "@/lib/versions";
+import { isPandemicView } from "@/lib/versions";
 
 // 순환 타이밍(전시 모드). 틱이 아니라 실제 시간(ms) 기준.
 const LIVE_MS = 45_000;       // 실시간을 보여주는 시간 → 창세로
@@ -26,12 +26,12 @@ export function ExhibitionController() {
   useEffect(() => {
     const id = setInterval(() => {
       if (!useExhibition.getState().auto) return;
-      const { mode, versionId, setMode, setVersion, config } = useViz.getState();
-      // 자동재생은 v27(전시 모드)부터 — 옛 버전 화면은 자동순환이 건드리지 않는다.
+      const { mode, versionId, setMode, config } = useViz.getState();
+      // 자동재생은 exhibit/pandemicArc 버전에서만 — 옛 버전 화면은 자동순환이 건드리지 않는다.
       // (팬데믹 중엔 디렉터의 '오늘→실시간' 핸드오프가 순환을 이어줌)
       if (!config.exhibit && !config.pandemicArc) return;
       const now = Date.now();
-      const cur = isPandemicVersion(versionId)
+      const cur = isPandemicView(versionId, mode)
         ? "pandemic"
         : mode === "genesis"
           ? "genesis"
@@ -47,8 +47,8 @@ export function ExhibitionController() {
         const nodes = useMetrics.getState().emergent?.nodes ?? 0;
         if (nodes >= GENESIS_GROWN) {
           if (!grownAt.current) grownAt.current = now;
-          else if (now - grownAt.current > GROWN_HOLD_MS && LATEST_PANDEMIC) {
-            setVersion(LATEST_PANDEMIC.id);
+          else if (now - grownAt.current > GROWN_HOLD_MS) {
+            setMode("pandemic"); // 통합 버전 안에서 팬데믹 모드로(버전 점프 없음). 끝나면 디렉터가 live로 핸드오프.
           }
         }
       }

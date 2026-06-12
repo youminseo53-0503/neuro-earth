@@ -31,18 +31,24 @@ export function IdleController() {
     const unsubViz = useViz.subscribe((s, prev) => {
       if (prev.config.attract && !s.config.attract) setIdle(false);
     });
+    // 마우스 이동/휠은 '수동 비우기' 중엔 무시 — 데스크탑에서 비우기가 손짓 한 번에 안 풀리게.
     const onMove = () => {
+      if (useIdle.getState().manual) return;
       const now = Date.now();
       if (now - lastMove.current > 600) {
         lastMove.current = now;
         wake();
       }
     };
+    const onWheel = () => {
+      if (!useIdle.getState().manual) wake();
+    };
 
+    // 포인터다운·터치·키는 '의도적 복귀'라 수동 비우기도 즉시 깨운다.
     window.addEventListener("pointerdown", wake, { passive: true });
     window.addEventListener("touchstart", wake, { passive: true });
     window.addEventListener("keydown", wake);
-    window.addEventListener("wheel", wake, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("mousemove", onMove, { passive: true });
     wake(); // 타이머 시작
 
@@ -52,7 +58,7 @@ export function IdleController() {
       window.removeEventListener("pointerdown", wake);
       window.removeEventListener("touchstart", wake);
       window.removeEventListener("keydown", wake);
-      window.removeEventListener("wheel", wake);
+      window.removeEventListener("wheel", onWheel);
       window.removeEventListener("mousemove", onMove);
     };
   }, []);

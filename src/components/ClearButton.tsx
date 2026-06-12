@@ -17,7 +17,7 @@ export function ClearButton() {
     <button
       onPointerDown={(e) => {
         e.stopPropagation();
-        useIdle.getState().setIdle(true);
+        useIdle.getState().setIdle(true, true); // 수동 = 마우스 이동으론 안 풀림(클릭·탭·키로만 복귀)
       }}
       className={`absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-panel-border bg-black/65 px-3 py-1.5 text-[11px] font-semibold text-white/65 backdrop-blur-sm transition-opacity duration-700 hover:border-neon-cyan/50 hover:text-neon-cyan ${
         idle ? "pointer-events-none opacity-0" : "opacity-100"

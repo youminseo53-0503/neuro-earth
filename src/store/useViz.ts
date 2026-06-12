@@ -1,22 +1,19 @@
 import { create } from "zustand";
-import { LATEST, LATEST_PANDEMIC, VERSIONS, configFor, type VizConfig } from "@/lib/versions";
-
-/** 하단 바 모드(보는 방식). live/genesis는 단계별, pandemic은 별도 버전 라인(25 초기·26 멸종). */
-type ModeId = "live" | "genesis" | "pandemic" | "recovery";
+import { LATEST, VERSIONS, configFor, type ViewMode, type VizConfig } from "@/lib/versions";
 
 interface VizState {
   config: VizConfig;
   versionId: string;
-  mode: ModeId;
+  mode: ViewMode;
   setVersion: (id: string) => void;
   setMode: (mode: string) => void;
 }
 
 /**
  * 현재 시각 상태 — 두 축:
- *   · versionId = 진화 단계(버전 리모컨, live/genesis 한정)
- *   · mode      = 보는 방식(하단 바): 실시간/창세/팬데믹/회복
- * 팬데믹은 단계와 무관한 독립 모드(실시간 망 위 SIR).
+ *   · versionId = 진화 단계(버전 리모컨)
+ *   · mode      = 보는 방식(하단 바): 실시간 / 창세 / 팬데믹
+ * 팬데믹은 이제 통합 버전의 '세 번째 모드'다(별도 버전 점프 없음). 옛/팬데믹라인 버전은 단일 config.
  */
 export const useViz = create<VizState>((set, get) => ({
   config: configFor(LATEST, "live"),
@@ -25,24 +22,27 @@ export const useViz = create<VizState>((set, get) => ({
   setVersion: (id) => {
     const v = VERSIONS.find((x) => x.id === id);
     if (!v) return;
-    // 버전(단계)은 실시간/창세만 — 팬데믹/회복 보던 중이면 실시간으로
-    const m = get().mode === "genesis" ? "genesis" : "live";
+    const want = get().mode;
+    // 그 버전이 현재 모드를 가졌으면 유지, 아니면 live. 모드 없는(옛/팬데믹라인) 버전은 config 기준.
+    const m: ViewMode = v.modes
+      ? v.modes[want]
+        ? want
+        : "live"
+      : v.config?.pandemic
+        ? "pandemic"
+        : "live";
     set({ config: configFor(v, m), versionId: id, mode: m });
   },
   setMode: (mode) => {
-    if (mode === "pandemic") {
-      // 팬데믹 = 별도 버전 라인. 최신 팬데믹 버전(멸종)으로 점프(리모컨에서 25 초기도 선택 가능).
-      if (LATEST_PANDEMIC) get().setVersion(LATEST_PANDEMIC.id);
+    if (mode !== "live" && mode !== "genesis" && mode !== "pandemic") return;
+    const m = mode as ViewMode;
+    const cur = VERSIONS.find((x) => x.id === get().versionId);
+    if (cur?.modes?.[m]) {
+      set({ config: cur.modes[m]!, mode: m });
       return;
     }
-    if (mode !== "live" && mode !== "genesis") return; // 회복은 준비 중
-    const cur = VERSIONS.find((x) => x.id === get().versionId);
-    if (cur?.modes) {
-      set({ config: cur.modes[mode], mode });
-    } else {
-      // 옛 단일 버전 보던 중이면 최신 단계로 점프(그 모드로)
-      const stage = [...VERSIONS].reverse().find((x) => x.modes);
-      if (stage) set({ config: stage.modes![mode], versionId: stage.id, mode });
-    }
+    // 현재 버전에 그 모드가 없으면 — 그 모드를 가진 최신 버전으로 점프(예: 팬데믹 모드 가진 통합 버전)
+    const stage = [...VERSIONS].reverse().find((x) => x.modes?.[m]);
+    if (stage) set({ config: stage.modes![m]!, versionId: stage.id, mode: m });
   },
 }));

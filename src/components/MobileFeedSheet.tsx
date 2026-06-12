@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { timeline } from "@/data/timeline";
 import { BRIEFINGS, type Briefing } from "@/lib/briefings";
-import { isPandemicVersion } from "@/lib/versions";
+import { isPandemicView } from "@/lib/versions";
 import { useSheet, type SheetStage } from "@/store/useSheet";
 import { useUI } from "@/store/useUI";
 import { useViz } from "@/store/useViz";
@@ -80,7 +80,7 @@ export function MobileFeedSheet() {
   };
 
   // 구독 기반 — 자동순환으로 시나리오가 바뀌면 브리핑도 따라 바뀐다
-  const briefingKey: Briefing["key"] = isPandemicVersion(versionId)
+  const briefingKey: Briefing["key"] = isPandemicView(versionId, vizMode)
     ? "pandemic"
     : vizMode === "genesis"
       ? "genesis"
