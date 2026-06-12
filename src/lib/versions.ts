@@ -60,6 +60,8 @@ export interface VizConfig {
   pandemicArc?: boolean;
   /** 팬데믹 단절·재배선 — 대봉쇄에 시냅스(선)가 다 끊기고, 회복기에 더디게 다시 이어짐(v31+, 렌더 전용·엔진 불변) */
   pandemicSever?: boolean;
+  /** 외상/전쟁 '두부외상' 시네마틱 — 한 방의 타격으로 국소 병변(흉터) + 가소성 우회 재배선(emergent) */
+  traumaArc?: boolean;
   /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
   lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
@@ -75,7 +77,7 @@ export interface VizConfig {
 }
 
 /** 단계를 보는 방식 — 직각 축 */
-export type ViewMode = "live" | "genesis" | "pandemic";
+export type ViewMode = "live" | "genesis" | "pandemic" | "trauma";
 
 export interface VizVersion {
   id: string;
@@ -423,13 +425,14 @@ export const VERSIONS: VizVersion[] = [
     label: "팬데믹 — 단절·재배선 (대봉쇄에 끊기고 더디게 재연결)",
     config: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true },
   },
-  // ── 32 통합 — 한 버전 안에서 실시간·창세·팬데믹을 모드로 전환 + 자동순환 ──
-  //     팬데믹을 별도 라인이 아니라 '세 번째 모드'로 품는다(버튼 눌러도 버전 점프 없음).
-  //     자동순환은 live→genesis→pandemic을 한 버전 안에서 돈다. 옛 버전은 그대로(과거 안 바꿈).
+  // ── 32 통합 — 한 버전 안에서 실시간·창세·팬데믹·외상을 모드로 전환 + 자동순환 ──
+  //     각 시나리오를 별도 라인이 아니라 '모드'로 품는다(버튼 눌러도 버전 점프 없음).
+  //     자동순환은 live→genesis→pandemic/trauma를 한 버전 안에서 돈다. 옛 버전은 그대로(과거 안 바꿈).
+  //     새 시나리오 모드 추가는 '기존 모드 화면을 안 바꾸는' 순수 가산이라 미래가 과거를 안 바꾼다.
   {
     id: "s-unified",
     n: 97,
-    label: "통합 — 실시간·창세·팬데믹 (한 버전·자동순환)",
+    label: "통합 — 실시간·창세·팬데믹·외상 (한 버전·자동순환)",
     modes: {
       live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true }),
       genesis: genCiv({
@@ -443,6 +446,7 @@ export const VERSIONS: VizVersion[] = [
         exhibit: true,
       }),
       pandemic: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true, exhibit: true },
+      trauma: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true, traumaArc: true }),
     },
   },
 ];

@@ -10,6 +10,7 @@ import { BriefingPanel } from "@/components/BriefingPanel";
 import { ExhibitionController } from "@/components/ExhibitionController";
 import { IdleController } from "@/components/IdleController";
 import { ClearButton } from "@/components/ClearButton";
+import { FlashOverlay } from "@/components/FlashOverlay";
 import { MobileFeedSheet } from "@/components/MobileFeedSheet";
 import { useViz } from "@/store/useViz";
 import { useIdle } from "@/store/useIdle";
@@ -62,6 +63,9 @@ export default function Home() {
 
       {/* 모바일 — 보고서/브리핑 바텀시트 */}
       <MobileFeedSheet />
+
+      {/* 외상 충격 섬광(전역 최상단) */}
+      <FlashOverlay />
     </main>
   );
 }

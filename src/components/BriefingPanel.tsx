@@ -17,11 +17,14 @@ export function BriefingPanel() {
   const idle = useIdle((s) => s.idle);
   const [open, setOpen] = useState(true);
 
-  const key: Briefing["key"] = isPandemicView(versionId, mode)
-    ? "pandemic"
-    : mode === "genesis"
-      ? "genesis"
-      : "live";
+  const key: Briefing["key"] =
+    mode === "trauma"
+      ? "trauma"
+      : isPandemicView(versionId, mode)
+        ? "pandemic"
+        : mode === "genesis"
+          ? "genesis"
+          : "live";
   const b = BRIEFINGS[key];
 
   return (

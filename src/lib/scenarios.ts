@@ -46,6 +46,14 @@ export const MODES: ModeInfo[] = [
     status: "ready",
   },
   {
+    id: "trauma",
+    label: "외상",
+    kind: "scenario",
+    badge: "시나리오 · 외상(전쟁·두부외상) — 병변과 가소성 재배선",
+    blurb: "한 방의 타격으로 회로가 끊기고, 가소성이 죽은 자리를 우회해 다시 잇는다",
+    status: "ready",
+  },
+  {
     id: "recovery",
     label: "회복",
     kind: "scenario",

@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { EmergentNetwork, type ENode, type ESyn, type EConfig } from "@/lib/emergent";
 import type { VizConfig } from "@/lib/versions";
 import { PandemicDirector, type PandemicHud } from "@/lib/pandemic";
+import { TraumaDirector, type TraumaHud } from "@/lib/trauma";
 import { EARTH_RADIUS } from "@/lib/geo";
 import { isPhone } from "@/lib/device";
 import { makeSources } from "@/lib/signals/registry";
@@ -273,7 +274,7 @@ export function EmergentLayer() {
   // 시작해야 8대 문명이 처음부터 심긴다 → 리빌드 트리거로만 따로 덧붙인다(미러 위험 없음).
   const sig =
     config.sources.join(",") + "|" + JSON.stringify(netOpts) +
-    "|" + (config.civAnchors ? "C" : "") + (config.pandemicArc ? "X" : "");
+    "|" + (config.civAnchors ? "C" : "") + (config.pandemicArc ? "X" : "") + (config.traumaArc ? "T" : "");
   const { net, sources, synGeo, synMat, routeGeom, routeMat, rPos, rCol } = useMemo(() => {
     const net = new EmergentNetwork(netOpts);
     const sources = makeSources(config.sources);
@@ -310,15 +311,16 @@ export function EmergentLayer() {
   const prevSyn = useRef(0);
   const lastNet = useRef<EmergentNetwork | null>(null);
   const director = useRef(new PandemicDirector());
+  const traumaDir = useRef(new TraumaDirector());
   const prevClimax = useRef(false);
   const handedOff = useRef(false);
   const setPandemic = usePandemic((s) => s.set);
 
-  // 팬데믹 '대봉쇄' 시네마틱이 아닐 땐 하단 자막 숨김
+  // 시네마틱(팬데믹/외상)이 아닐 땐 하단 자막 숨김
   useEffect(() => {
-    if (!config.pandemicArc) setPandemic({ active: false });
+    if (!config.pandemicArc && !config.traumaArc) setPandemic({ active: false });
     return () => setPandemic({ active: false });
-  }, [config.pandemicArc, setPandemic]);
+  }, [config.pandemicArc, config.traumaArc, setPandemic]);
 
   // 언마운트(엔진 전환 등) 시 회전·카메라 원복 + 클라이맥스로 껐던 지구는 다시 켬
   useEffect(() => {
@@ -362,6 +364,7 @@ export function EmergentLayer() {
       lastNet.current = net;
       prevSyn.current = 0;
       director.current.reset(); // 새 망 → 시네마틱도 처음부터
+      traumaDir.current.reset();
       handedOff.current = false; // 라이브 핸드오프 플래그도 리셋
     }
 
@@ -370,16 +373,19 @@ export function EmergentLayer() {
     // 팬데믹 '대봉쇄' 시네마틱 — 엔진을 직접 연출(씨앗·전염률·전부감염·재유행억제)하고 자막/halt/주입량 산출
     let arc: PandemicHud | null = null;
     if (config.pandemicArc) arc = director.current.update(net);
+    // 외상/전쟁 시네마틱 — 타격(net.lesion 1회) + 자막/카메라/섬광. 재배선은 엔진 가소성이 emergent.
+    let trauma: TraumaHud | null = null;
+    if (config.traumaArc) trauma = traumaDir.current.update(net);
 
-    // present가 '오늘'에 닿아 잠시 머문 뒤 → 실시간(라이브) 모드로 자연 전환(한 번만)
-    if (arc?.done && !handedOff.current) {
+    // 시네마틱이 '오늘'/끝에 닿으면 → 실시간(라이브) 모드로 자연 전환(한 번만)
+    if ((arc?.done || trauma?.done) && !handedOff.current) {
       handedOff.current = true;
       useViz.getState().setMode("live");
     }
 
-    // 봉쇄 중엔 항공편(노선)은 일부만, 노드 자극은 바닥값 유지(너무 흐려지지 않게) — 교류는 멎되 0은 아님
+    // 봉쇄 중엔 노선 일부만 / 자극 바닥값. 외상 디아시시스 땐 자극을 잠깐 낮춤.
     const routeScale = arc ? arc.injectScale : 1;
-    const nodeScale = arc ? arc.nodeScale : 1;
+    const nodeScale = arc ? arc.nodeScale : trauma ? trauma.nodeScale : 1;
     for (const src of sources) {
       if (!src.enabled) continue;
       src.observe?.(net.metrics.nodes); // 현재 규모를 소스에 알림(문명사: 비행기=N 기준)
@@ -417,20 +423,23 @@ export function EmergentLayer() {
     // 카메라 — 팬데믹은 항상 단계별 스크립트 연출 / 라이브·창세는 전시 모드+자동일 때만 무빙
     let camDist = 0;
     if (arc) camDist = arc.camDist;
+    else if (trauma) camDist = trauma.camDist;
     else if (exhibit && useExhibition.getState().auto) {
       camDist = genesisScenario
         ? 4.6 + Math.min(1, net.metrics.nodes / 6000) * 4.4 // 창세: 자랄수록 줌아웃(4.6→9)
         : 6 + Math.sin(frameRef.current * 0.0016) * 0.8;     // 라이브: 느린 호흡(push-in/pull-back)
     }
     ui.setCamDist(camDist);
+    ui.setFlash(trauma ? trauma.flash : 0); // 외상 타격 섬광(비외상=0, no-op 가드)
     // 지구 끄기/켜기는 '엣지에서 1회성'으로만 — 그 사이엔 사용자의 '지구 켜기' 버튼이 이긴다.
     if (climax !== prevClimax.current) {
       ui.setEarthVisible(!climax); // 진입 → 자동 끔 / 해제 → 다시 켬
       prevClimax.current = climax;
     }
 
-    if (arc && frameRef.current % 6 === 0) {
-      setPandemic({ active: true, phase: arc.phase, dateLabel: arc.dateLabel, caption: arc.caption, infectedPct: arc.infectedPct });
+    if (frameRef.current % 6 === 0) {
+      if (arc) setPandemic({ active: true, phase: arc.phase, dateLabel: arc.dateLabel, caption: arc.caption, infectedPct: arc.infectedPct, bar: true });
+      else if (trauma) setPandemic({ active: true, phase: trauma.phase, dateLabel: trauma.big, caption: trauma.caption, infectedPct: 0, bar: false });
     }
     if (frameRef.current++ % 12 === 0) setE(net.metrics);
   });

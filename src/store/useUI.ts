@@ -25,6 +25,10 @@ interface UIState {
    */
   camDist: number;
   setCamDist: (v: number) => void;
+
+  /** 충격 섬광(0..1) — 외상 타격 순간 화면이 번쩍. FlashOverlay가 흰 오버레이 불투명도로 읽는다. */
+  flash: number;
+  setFlash: (v: number) => void;
 }
 
 export const BASE_SPIN = 0.25;
@@ -39,4 +43,7 @@ export const useUI = create<UIState>((set) => ({
 
   camDist: 0,
   setCamDist: (v) => set((s) => (s.camDist === v ? s : { camDist: v })),
+
+  flash: 0,
+  setFlash: (v) => set((s) => (s.flash === v ? s : { flash: v })),
 }));

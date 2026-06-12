@@ -80,11 +80,14 @@ export function MobileFeedSheet() {
   };
 
   // 구독 기반 — 자동순환으로 시나리오가 바뀌면 브리핑도 따라 바뀐다
-  const briefingKey: Briefing["key"] = isPandemicView(versionId, vizMode)
-    ? "pandemic"
-    : vizMode === "genesis"
-      ? "genesis"
-      : "live";
+  const briefingKey: Briefing["key"] =
+    vizMode === "trauma"
+      ? "trauma"
+      : isPandemicView(versionId, vizMode)
+        ? "pandemic"
+        : vizMode === "genesis"
+          ? "genesis"
+          : "live";
   const b = BRIEFINGS[briefingKey];
 
   return (
@@ -121,7 +124,13 @@ export function MobileFeedSheet() {
                     : "bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/40"
                 }`}
               >
-                {briefingKey === "live" ? "● 실시간" : briefingKey === "genesis" ? "창세" : "팬데믹"}
+                {briefingKey === "live"
+                  ? "● 실시간"
+                  : briefingKey === "genesis"
+                    ? "창세"
+                    : briefingKey === "trauma"
+                      ? "외상"
+                      : "팬데믹"}
               </span>
             </span>
             {stage !== "peek" && (

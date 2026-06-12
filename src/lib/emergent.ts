@@ -186,6 +186,7 @@ export class EmergentNetwork {
   private edges = new Set<number>(); // 연결 쌍 O(1) 조회
   private inSum!: Float32Array; // 항상성용 노드별 입력 |w| 합
   private cellCount = new Int32Array(GLAT * GLON); // 격자 셀별 살아있는 노드 수(로컬 밀도)
+  private scarCells = new Set<number>(); // 외상 흉터 셀 — 여기엔 새 노드가 안 태어남(우회 재배선 유도). 비외상=빈 셋
 
   private cellOf(lat: number, lon: number): number {
     let la = Math.floor((lat + 90) / 10);
@@ -244,6 +245,8 @@ export class EmergentNetwork {
   }
 
   private birth(lat: number, lon: number, activation: number): number {
+    // 외상 흉터 위엔 재생 금지 — 죽은 구역은 비고, 망은 가장자리로 우회해 자란다(비외상은 셋이 비어 무영향).
+    if (this.scarCells.size > 0 && this.scarCells.has(this.cellOf(lat, lon))) return -1;
     const slot = this.freeNodes.pop();
     if (slot === undefined) return -1;
     const [x, y, z] = latLonToUnit(lat, lon);
@@ -379,6 +382,28 @@ export class EmergentNetwork {
     if (idx >= 0) {
       this.nodes[idx].inf = 1;
       this.nodes[idx].infT = 0;
+    }
+  }
+
+  /** 외상/전쟁 — (lat,lon) 중심 각거리 rRad 안의 노드를 죽이고(병변) 그 구역을 '흉터'로 표시한다.
+   *  흉터 셀엔 birth가 막혀, 주변 성한 망이 헤브 가소성으로 죽은 구역을 우회해 자란다(재배선=emergent).
+   *  영속 앵커(문명 거점)는 면제. config.traumaArc 디렉터만 호출 → 다른 버전 동역학 불변. */
+  lesion(lat: number, lon: number, rRad: number) {
+    const [cx, cy, cz] = latLonToUnit(lat, lon);
+    const cosR = Math.cos(rRad);
+    for (let i = 0; i < this.nodes.length; i++) {
+      const n = this.nodes[i];
+      if (!n.alive || n.immortal) continue;
+      if (n.x * cx + n.y * cy + n.z * cz >= cosR) this.killNode(i);
+    }
+    // 흉터 셀 — 병변 반경 안 격자 셀(셀 중심 기준). 여기엔 새 노드가 안 태어난다.
+    for (let la = 0; la < GLAT; la++) {
+      const clat = la * 10 - 90 + 5;
+      for (let lo = 0; lo < GLON; lo++) {
+        const clon = lo * 10 - 180 + 5;
+        const [ux, uy, uz] = latLonToUnit(clat, clon);
+        if (ux * cx + uy * cy + uz * cz >= cosR) this.scarCells.add(la * GLON + lo);
+      }
     }
   }
 
