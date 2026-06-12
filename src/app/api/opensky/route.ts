@@ -1,29 +1,28 @@
 // OpenSky 실시간 항공 — 서버에서만 키 사용(클라 노출 X).
 // OAuth2 client_credentials로 토큰 발급 → /states/all → 공항별 '근처 비행기 수' 집계.
-import { Agent } from "undici";
+import { fetch as undiciFetch, Agent } from "undici";
 
 const TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const STATES_URL = "https://opensky-network.org/api/states/all";
 
-// 서버리스(Vercel)에서 IPv6 happy-eyeballs로 외부 API 연결이 'fetch failed' 나는 걸 피해 IPv4 강제.
-let ipv4Dispatcher: Agent | null = null;
-try {
-  ipv4Dispatcher = new Agent({ connect: { family: 4 } });
-} catch {
-  ipv4Dispatcher = null;
-}
+// undici 자체 fetch + Agent를 '버전 맞춰' 사용(Node 내장 fetch에 외부 undici Agent를 꽂으면
+// UND_ERR_INVALID_ARG로 터진다). 서버리스 IPv6 happy-eyeballs 회피 위해 IPv4 강제.
+const ipv4Dispatcher = new Agent({ connect: { family: 4 } });
 const UA = "neuro-earth/1.0 (+https://github.com/youminseo53-0503/neuro-earth)";
 
 /** 타임아웃·User-Agent·IPv4 강제를 입힌 fetch(연결 실패/지연으로 함수가 매달리지 않게). */
-function osFetch(url: string, opts: RequestInit = {}) {
-  const final = {
-    ...opts,
+function osFetch(
+  url: string,
+  opts: { method?: string; headers?: Record<string, string>; body?: string | URLSearchParams } = {},
+) {
+  return undiciFetch(url, {
+    method: opts.method,
     headers: { "user-agent": UA, ...(opts.headers || {}) },
+    body: opts.body,
     signal: AbortSignal.timeout(8000),
-    ...(ipv4Dispatcher ? { dispatcher: ipv4Dispatcher } : {}),
-  };
-  return fetch(url, final as RequestInit);
+    dispatcher: ipv4Dispatcher,
+  }) as unknown as Promise<Response>;
 }
 
 // 주요 공항 거점 (ICAO, 위도, 경도) — 대륙별 균형 있게 분포
