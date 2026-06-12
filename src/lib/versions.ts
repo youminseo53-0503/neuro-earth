@@ -446,7 +446,18 @@ export const VERSIONS: VizVersion[] = [
         exhibit: true,
       }),
       pandemic: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true, exhibit: true },
-      trauma: live({ mortal: true, lifespan: 1600, softCap: 8000, maxNodes: 8000, exhibit: true, traumaArc: true }),
+      // 외상은 호르몬·내재발화를 끄고 성장률을 낮춰 '느리게 차오르고 느리게 재건'되게(대격변 드라마).
+      trauma: live({
+        mortal: true,
+        lifespan: 1600,
+        softCap: 7500,
+        maxNodes: 8000,
+        exhibit: true,
+        traumaArc: true,
+        hormone: false,
+        intrinsic: false,
+        growthProb: 0.08,
+      }),
     },
   },
 ];

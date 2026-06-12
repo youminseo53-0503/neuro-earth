@@ -33,11 +33,11 @@ export class TraumaDirector {
   private struck = false;
 
   // 튜닝(틱 ≈ 프레임, ~60fps)
-  private CALM_NODES = 6800; // 이만큼 가득 차오르면 → 타격(망이 빽빽할수록 몰살이 충격적)
-  private CALM_MAX = 5400;   // 그래도 안 차면 강제 진행(성장 정체 대비, ~90초)
+  private CALM_NODES = 6000; // 이만큼 가득 차오르면 → 타격(망이 빽빽할수록 몰살이 충격적)
+  private CALM_MAX = 9000;   // 그래도 안 차면 강제 진행(느린 성장 대비, ~150초 상한)
   private IMPACT_HOLD = 60;  // 타격 직후 멈춤(섬광·devastation 노출, ~1초)
   private SHOCK = 200;       // 디아시시스(~3.3초)
-  private REWIRE = 3000;     // 재건 관찰(~50초) — 남은 1할에서 망이 다시 자라는 걸 보여줌
+  private REWIRE = 3600;     // 재건 관찰(~60초) — 남은 1할에서 망이 천천히 다시 자라는 걸 보여줌
 
   reset() {
     this.phase = "calm";
