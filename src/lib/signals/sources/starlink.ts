@@ -66,7 +66,8 @@ export function createStarlinkSource(): SignalSource {
         try {
           const pv = propagate(sat, now);
           const pos = pv && pv.position;
-          if (!pos) continue;
+          // satellite.js v5 타입: position이 false(전파 실패)일 수 있어 객체일 때만 진행
+          if (!pos || typeof pos === "boolean") continue;
           const geo = eciToGeodetic(pos, gmst);
           const lat = degreesLat(geo.latitude);
           const lon = degreesLong(geo.longitude);
