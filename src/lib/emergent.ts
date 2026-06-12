@@ -385,6 +385,30 @@ export class EmergentNetwork {
     }
   }
 
+  /** 대격변 — 살아있는 노드를 무작위로 대량 몰살(생존 비율 keep, 예: 0.1=1할만 생존). 영속 앵커는 면제.
+   *  killNode를 6천 번 부르면 노드마다 시냅스 전수스캔이라 프리즈 → 노드/시냅스를 각각 1-pass로 정리(O(N+S)).
+   *  config.traumaArc 디렉터만 호출 → 다른 버전 동역학 불변(rng 스트림도 trauma에서만 소비). */
+  decimate(keep: number) {
+    const doomed = new Uint8Array(this.nodes.length);
+    for (let i = 0; i < this.nodes.length; i++) {
+      const n = this.nodes[i];
+      if (n.alive && !n.immortal && this.rng() > keep) doomed[i] = 1;
+    }
+    // 시냅스 한 번에 — 양끝 중 하나라도 죽으면 끊는다(killSyn이 deg·edges·freeSyns 정리)
+    for (let s = 0; s < this.syns.length; s++) {
+      const e = this.syns[s];
+      if (e.alive && (doomed[e.i] || doomed[e.j])) this.killSyn(s);
+    }
+    // 노드 한 번에 — alive·cellCount·freeNodes 정리(시냅스는 위에서 이미 정리됨)
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (!doomed[i]) continue;
+      const n = this.nodes[i];
+      n.alive = false;
+      this.cellCount[this.cellOf(n.lat, n.lon)]--;
+      this.freeNodes.push(i);
+    }
+  }
+
   /** 외상/전쟁 — (lat,lon) 중심 각거리 rRad 안의 노드를 죽이고(병변) 그 구역을 '흉터'로 표시한다.
    *  흉터 셀엔 birth가 막혀, 주변 성한 망이 헤브 가소성으로 죽은 구역을 우회해 자란다(재배선=emergent).
    *  영속 앵커(문명 거점)는 면제. config.traumaArc 디렉터만 호출 → 다른 버전 동역학 불변. */

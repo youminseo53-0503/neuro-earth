@@ -446,7 +446,7 @@ export const VERSIONS: VizVersion[] = [
         exhibit: true,
       }),
       pandemic: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true, exhibit: true },
-      trauma: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true, traumaArc: true }),
+      trauma: live({ mortal: true, lifespan: 1600, softCap: 8000, maxNodes: 8000, exhibit: true, traumaArc: true }),
     },
   },
 ];
