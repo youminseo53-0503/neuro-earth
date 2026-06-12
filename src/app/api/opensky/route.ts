@@ -2,6 +2,10 @@
 // OAuth2 client_credentials로 토큰 발급 → /states/all → 공항별 '근처 비행기 수' 집계.
 import { fetch as undiciFetch, Agent } from "undici";
 
+// OpenSky 서버는 독일(DLR). 미국 동부(iad1)에선 연결이 막히는/안 닿는 듯 → 프랑크푸르트(fra1)에서 실행.
+export const runtime = "nodejs";
+export const preferredRegion = "fra1";
+
 const TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const STATES_URL = "https://opensky-network.org/api/states/all";
@@ -20,7 +24,7 @@ function osFetch(
     method: opts.method,
     headers: { "user-agent": UA, ...(opts.headers || {}) },
     body: opts.body,
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(12000),
     dispatcher: ipv4Dispatcher,
   }) as unknown as Promise<Response>;
 }
