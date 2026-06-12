@@ -58,6 +58,8 @@ export interface VizConfig {
   pandemic?: boolean;
   /** 팬데믹 '멸종' 시네마틱 — 실제 코로나 타임라인(2019.12→2021): 활발→삽시간 빨강→대봉쇄 정지 + 날짜 자막 */
   pandemicArc?: boolean;
+  /** 팬데믹 단절·재배선 — 대봉쇄에 시냅스(선)가 다 끊기고, 회복기에 더디게 다시 이어짐(v31+, 렌더 전용·엔진 불변) */
+  pandemicSever?: boolean;
   /** 노드 절대 수명(틱) 직접 지정. 없으면 mortal일 때 1500 */
   lifespan?: number;
   /** 8대 문명 영속 앵커 심기(창세 모드 전용) — genesis 소스의 pollAnchors 사용 */
@@ -410,6 +412,16 @@ export const VERSIONS: VizVersion[] = [
         exhibit: true,
       }),
     },
+  },
+  // ── 31 팬데믹 단절·재배선 — 대봉쇄에 선이 다 끊기고, 회복기에 더디게 다시 이어짐 ──
+  //     v26(대봉쇄)엔 단절이 원래 없던 동작이라(코드에 미구현) 새 기능 → v26은 그대로 두고 별도 버전으로 분리.
+  //     pandemicSever 켜진 이 버전만 시냅스가 끊겼다 재연결(렌더 전용, 엔진 가중치 불변 = 골든테스트 안전).
+  //     맨 끝이라 LATEST_PANDEMIC(하단 '팬데믹' 버튼·자동순환)이 자동으로 여기로 잡힌다.
+  {
+    id: "p-sever",
+    n: 94,
+    label: "팬데믹 — 단절·재배선 (대봉쇄에 끊기고 더디게 재연결)",
+    config: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true },
   },
 ];
 

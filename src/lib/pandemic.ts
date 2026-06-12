@@ -29,6 +29,7 @@ export interface PandemicHud {
   halt: number;         // 노선 밝기(0..1) — 봉쇄 시 바닥값까지 떨어지되 0은 아님
   injectScale: number;  // 항공편(노선) 주입 비율(0..1) — 봉쇄 시 최소 운항
   nodeScale: number;    // 노드 자극 세기(0..1) — 너무 흐려지지 않게 바닥값 유지(봉쇄 0.5)
+  severance: number;    // 시냅스 단절도(0..1) — 봉쇄에 1로 끊기고 회복기에 0으로 느리게 재연결(pandemicSever 버전만 적용)
   climax: boolean;      // 클라이맥스(지구 자동 끄기·회전 가속)
   camDist: number;      // 시네마틱 카메라 목표 거리(돌리). 0이면 사용자 자유
   done: boolean;        // present가 '오늘'에 닿아 잠시 머문 뒤 — 실시간(라이브) 모드로 넘길 신호
@@ -117,6 +118,7 @@ export class PandemicDirector {
     let halt = 1;
     let injectScale = 1;
     let nodeScale = 1;
+    let severance = 0;
     let climax = false;
     let done = false;
     let dateLabel = "";
@@ -193,6 +195,7 @@ export class PandemicDirector {
         halt = lerp(1, 0.1, p);          // 노선 밝기 1→0.1(완전 0 아님 — 화물·필수편 잔존)
         injectScale = lerp(1, 0.06, p);  // 항공편 1→0.06(최소 운항)
         nodeScale = lerp(1, 0.5, p);     // 노드 자극 절반까지만(흐려지되 빨강은 또렷)
+        severance = lerp(0, 1, p);       // 시냅스(선)가 끊겨나간다 — 봉쇄로 망이 다 분리됨
         dateLabel = monthLabel(M(2020, 4));
         caption = "대봉쇄 — 하늘길이 멎고 세계가 멈춰서다 (항공편 -73%)";
         if (local >= this.LOCK) {
@@ -208,6 +211,7 @@ export class PandemicDirector {
         halt = lerp(0.1, 0.6, p);         // 노선 밝기 회복
         injectScale = lerp(0.06, 0.5, p); // 항공 운항 회복
         nodeScale = lerp(0.5, 0.9, p);    // 세계가 다시 깨어남 — 노드 밝기 회복(출생은 절제)
+        severance = 1 - p * p;            // 끊긴 선이 다시 이어진다 — 초반은 더디게(한참 끊긴 채), 후반에 빠르게 재배선
         dateLabel = monthLabel(lerp(M(2020, 5), M(2021, 6), p));
         caption = "2020–2021 — 더디게 회복하는 세계, 다시 잇는 하늘길";
         // 아주 더딘 치유 — 매 프레임 극소수만 무작위로 단계 진행(물결처럼 흩어). 후반일수록 살짝 가속.
@@ -242,6 +246,6 @@ export class PandemicDirector {
       }
     }
 
-    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, nodeScale, climax, camDist: CAM[this.phase], done };
+    return { phase: this.phase, dateLabel, caption, infectedPct, halt, injectScale, nodeScale, severance, climax, camDist: CAM[this.phase], done };
   }
 }

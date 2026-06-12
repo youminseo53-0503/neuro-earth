@@ -112,7 +112,17 @@ function drawNodes(
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
 
-/** 시냅스 패스 — 굵기=사용량(use)인 실린더(로컬 연결, 노선 제외). prevSyn으로 줄어든 만큼 숨김. */
+// 팬데믹 단절(pandemicSever): 엔진 가중치는 그대로 두고 '렌더'에서만 선을 끊는다(골든테스트 불변).
+const SEVER_BAND = 0.12; // 엣지별 재연결 페이드 폭 — staggered하게 끊겼다 이어지게
+/** 엣지(시냅스) 고유 의사난수 [0,1) — 양끝 노드 인덱스로 결정적. 단절/재연결 순서를 공간적으로 흩뿌린다. */
+function edgeRand(i: number, j: number): number {
+  let h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0;
+  h ^= h >>> 13;
+  return (h >>> 0) / 4294967295;
+}
+
+/** 시냅스 패스 — 굵기=사용량(use)인 실린더(로컬 연결, 노선 제외). prevSyn으로 줄어든 만큼 숨김.
+ *  sever(0..1): 팬데믹 단절도 — >0이면 엣지별 임계 넘은 선부터 가늘어지며 끊기고(안 그림), 회복기엔 역순으로 재연결. */
 function drawSynapses(
   sm: THREE.InstancedMesh,
   syns: ESyn[],
@@ -121,6 +131,7 @@ function drawSynapses(
   color: THREE.Color,
   dummy: THREE.Object3D,
   dir: THREE.Vector3,
+  sever: number,
 ) {
   let c = 0;
   for (let s = 0; s < syns.length && c < SYN_CAP; s++) {
@@ -129,19 +140,25 @@ function drawSynapses(
     const a = nodes[e.i];
     const b = nodes[e.j];
     if (!a.alive || !b.alive) continue;
+    let alpha = 1;
+    if (sever > 0) {
+      const vis = (edgeRand(e.i, e.j) - sever) / SEVER_BAND;
+      if (vis <= 0.02) continue; // 끊긴 선 — 안 그림(가중치는 보존, 렌더만 단절)
+      alpha = Math.min(1, vis);
+    }
     const ax = a.x * SURF, ay = a.y * SURF, az = a.z * SURF;
     const bx = b.x * SURF, by = b.y * SURF, bz = b.z * SURF;
     dir.set(bx - ax, by - ay, bz - az);
     const len = dir.length();
     if (len < 1e-5) continue;
     dir.divideScalar(len);
-    const th = THICK_BASE * (0.18 + Math.min(e.use, 5) * 0.42);
+    const th = THICK_BASE * (0.18 + Math.min(e.use, 5) * 0.42) * alpha; // 끊기는 중엔 가늘어지다 사라짐
     dummy.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
     dummy.quaternion.setFromUnitVectors(UP, dir);
     dummy.scale.set(th, len, th);
     dummy.updateMatrix();
     sm.setMatrixAt(c, dummy.matrix);
-    const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35);
+    const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35) * alpha;
     if (e.sign > 0) color.setRGB(0.12 * t, 0.85 * t, 0.65 * t);
     else color.setRGB(0.85 * t, 0.2 * t, 0.35 * t);
     sm.setColorAt(c, color);
@@ -383,8 +400,10 @@ export function EmergentLayer() {
     // 공유 스크래치(color/dummy/dir)와 prevSyn ref를 넘겨 프레임당 할당 0 유지.
     // 팬데믹이면 노선도 감염 따라 빨강(봉쇄 시 halt로 페이드). 비팬데믹은 null=평소 청록.
     const phalt = config.pandemic ? (arc ? arc.halt : 1) : null;
+    // 팬데믹 단절 — pandemicSever 버전(v31)에서만. 옛 팬데믹(v26)은 sever=0이라 기존과 동일.
+    const sever = config.pandemicSever && arc ? arc.severance : 0;
     drawNodes(mesh, net.nodes, config, NODE_LV, color, dummy);
-    drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir);
+    drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir, sever);
     drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt);
 
     // 클라이맥스/카메라 연출은 자동재생 버전(v27+, exhibit)부터 — 옛 버전 화면은 안 건드림.
