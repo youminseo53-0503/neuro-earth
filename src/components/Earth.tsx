@@ -63,9 +63,9 @@ export function Earth() {
           // 밤쪽 어스샤인 — 낮 텍스처를 은은한 달빛 톤으로 자체발광시켜, 태양 반대편(밤)도
           // 지구가 흐릿하게 보이게 한다. 창세엔 스타링크 선이 없어 밤 지역이 완전 검정이 되던 문제 해소.
           // (지구를 끄는 봉쇄 클라이맥스와 무관 — 그건 메시 자체를 숨김.)
-          emissive={new THREE.Color("#7d97c4")}
+          emissive={new THREE.Color("#8aa6d2")}
           emissiveMap={dayMap}
-          emissiveIntensity={0.32}
+          emissiveIntensity={0.48}
         />
       </mesh>
 

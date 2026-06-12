@@ -101,7 +101,7 @@ export default function GlobeScene() {
     >
       <color attach="background" args={["#050810"]} />
 
-      <ambientLight intensity={0.18} />
+      <ambientLight intensity={0.26} />
       <directionalLight
         position={[sun.x * 10, sun.y * 10, sun.z * 10]}
         intensity={2.0}
