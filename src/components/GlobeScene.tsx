@@ -18,6 +18,9 @@ import { GridWaveLayer } from "./GridWaveLayer";
  *   · spin   : 클라이맥스에서 회전 가속
  *   · camDist: >0이면 카메라를 그 거리로 천천히 끌어당김(연출 push-in/pull-back), 0이면 사용자 자유
  */
+// 아이폰(좁은 세로 화면)에선 지구가 작게 느껴짐 → 카메라를 가깝게 당겨 더 크게. 아이패드·데스크탑은 유지.
+const CAM_SCALE = isPhone() ? 0.78 : 1;
+
 function Controls() {
   const ref = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const lastUser = useRef(0); // 사용자가 직접 드래그/핀치한 마지막 시각
@@ -25,7 +28,7 @@ function Controls() {
     const c = ref.current;
     if (!c) return;
     c.autoRotateSpeed = useUI.getState().spin;
-    const cd = useUI.getState().camDist;
+    const cd = useUI.getState().camDist * CAM_SCALE; // 폰에선 더 가깝게(지구 크게)
     // 사용자 조작 후 15초는 돌리 연출이 카메라를 안 뺏는다(특히 모바일 핀치줌과 싸움 방지)
     if (cd > 0 && Date.now() - lastUser.current > 15_000) {
       const cam = c.object;
@@ -42,7 +45,7 @@ function Controls() {
       enableDamping
       autoRotate
       autoRotateSpeed={useUI.getState().spin}
-      minDistance={EARTH_RADIUS * 1.6}
+      minDistance={EARTH_RADIUS * (isPhone() ? 1.25 : 1.6)}
       maxDistance={14}
       onStart={() => (lastUser.current = Date.now())}
     />
@@ -64,7 +67,7 @@ export default function GlobeScene() {
 
   return (
     <Canvas
-      camera={{ position: [0, 0, 6], fov: 45 }}
+      camera={{ position: [0, 0, mobile ? 4.7 : 6], fov: 45 }}
       dpr={mobile ? [1, 1.5] : [1, 2]}
       gl={{ powerPreference: mobile ? "low-power" : "high-performance", antialias: !mobile }}
     >

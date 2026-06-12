@@ -2,6 +2,7 @@
 
 import { useMetrics } from "@/store/useMetrics";
 import { useViz } from "@/store/useViz";
+import { useIdle } from "@/store/useIdle";
 import { VERSIONS, isPandemicVersion } from "@/lib/versions";
 import { modeById } from "@/lib/scenarios";
 
@@ -15,9 +16,14 @@ export function HUD() {
   const version = VERSIONS.find((v) => v.id === versionId);
   const activeMode = isPandemicVersion(versionId) ? "pandemic" : mode;
   const modeInfo = modeById(activeMode); // 실시간/창세/팬데믹
+  const idle = useIdle((s) => s.idle);
 
   return (
-    <div className="pointer-events-none absolute left-4 top-4 select-none font-mono text-[11px] leading-relaxed">
+    <div
+      className={`pointer-events-none absolute left-4 top-4 select-none font-mono text-[11px] leading-relaxed transition-opacity duration-700 ${
+        idle ? "opacity-0" : "opacity-100"
+      }`}
+    >
       <div className="mb-1 text-sm font-bold tracking-wide text-white">
         NEURO·EARTH
       </div>

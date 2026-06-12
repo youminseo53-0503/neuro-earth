@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BRIEFINGS, type Briefing } from "@/lib/briefings";
 import { isPandemicVersion } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
+import { useIdle } from "@/store/useIdle";
 
 /**
  * 우측 하단 시나리오 브리핑 패널(캠페인 미션 브리핑 느낌).
@@ -13,6 +14,7 @@ import { useViz } from "@/store/useViz";
 export function BriefingPanel() {
   const mode = useViz((s) => s.mode);
   const versionId = useViz((s) => s.versionId);
+  const idle = useIdle((s) => s.idle);
   const [open, setOpen] = useState(true);
 
   const key: Briefing["key"] = isPandemicVersion(versionId)
@@ -23,8 +25,12 @@ export function BriefingPanel() {
   const b = BRIEFINGS[key];
 
   return (
-    <div className="pointer-events-none absolute bottom-4 right-4 z-20 hidden w-[clamp(340px,24vw,480px)] max-w-[44vw] select-none lg:block">
-      <div className="pointer-events-auto overflow-hidden rounded-lg border border-neon-cyan/25 bg-black/70 backdrop-blur-sm">
+    <div
+      className={`pointer-events-none absolute bottom-4 right-4 z-20 hidden w-[clamp(340px,24vw,480px)] max-w-[44vw] select-none transition-opacity duration-700 lg:block ${
+        idle ? "opacity-0" : "opacity-100"
+      }`}
+    >
+      <div className={`overflow-hidden rounded-lg border border-neon-cyan/25 bg-black/70 backdrop-blur-sm ${idle ? "pointer-events-none" : "pointer-events-auto"}`}>
         {/* 헤더 */}
         <button
           onClick={() => setOpen((v) => !v)}

@@ -8,6 +8,7 @@ import { ScenarioBar } from "@/components/ScenarioBar";
 import { PandemicCaption } from "@/components/PandemicCaption";
 import { BriefingPanel } from "@/components/BriefingPanel";
 import { ExhibitionController } from "@/components/ExhibitionController";
+import { IdleController } from "@/components/IdleController";
 import { MobileFeedSheet } from "@/components/MobileFeedSheet";
 import { useViz } from "@/store/useViz";
 
@@ -25,6 +26,8 @@ export default function Home() {
     <main className="flex h-[100dvh] w-screen overflow-hidden">
       {/* 전시(자동순환) 디렉터 — 화면 없음. 실시간↔창세↔팬데믹을 스스로 넘김 */}
       <ExhibitionController />
+      {/* 무반응 감지 — 어트랙트 모드(UI 숨김) */}
+      <IdleController />
       {/* 3D 씬 — 데스크탑 좌 3/4, 모바일 풀스크린 무대 */}
       <section className="relative flex-[3] min-w-0 bg-[radial-gradient(circle_at_50%_40%,#0b1430_0%,#050810_70%)]">
         <GlobeScene />

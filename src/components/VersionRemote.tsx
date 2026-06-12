@@ -4,6 +4,7 @@ import { useState } from "react";
 import { VERSIONS, type VizVersion } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
 import { useExhibition } from "@/store/useExhibition";
+import { useIdle } from "@/store/useIdle";
 
 /**
  * 버전 리모컨 — 좌측 가장자리 탭. 기본은 접힘(작은 탭),
@@ -14,7 +15,9 @@ import { useExhibition } from "@/store/useExhibition";
 export function VersionRemote() {
   const versionId = useViz((s) => s.versionId);
   const setVersion = useViz((s) => s.setVersion);
+  const idle = useIdle((s) => s.idle);
   const [open, setOpen] = useState(false);
+  const idleCls = idle ? "pointer-events-none opacity-0" : "opacity-100";
 
   const current = VERSIONS.find((v) => v.id === versionId);
   const curIdx = current ? VERSIONS.indexOf(current) : -1;
@@ -33,7 +36,7 @@ export function VersionRemote() {
       <>
         <button
           onClick={() => setOpen(true)}
-          className="absolute left-0 top-1/2 z-20 hidden -translate-y-1/2 items-center gap-1.5 rounded-r-lg border border-l-0 border-panel-border bg-black/70 py-2 pl-2 pr-2.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm transition hover:border-neon-cyan/50 hover:text-neon-cyan lg:flex"
+          className={`absolute left-0 top-1/2 z-20 hidden -translate-y-1/2 items-center gap-1.5 rounded-r-lg border border-l-0 border-panel-border bg-black/70 py-2 pl-2 pr-2.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm transition-opacity duration-700 hover:border-neon-cyan/50 hover:text-neon-cyan lg:flex ${idleCls}`}
           title="버전 타임라인 열기"
         >
           🕹️ 버전
@@ -46,7 +49,7 @@ export function VersionRemote() {
         </button>
         <button
           onClick={() => setOpen(true)}
-          className="absolute right-3 top-3 z-20 rounded-full border border-panel-border bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm lg:hidden"
+          className={`absolute right-3 top-3 z-20 rounded-full border border-panel-border bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm transition-opacity duration-700 lg:hidden ${idleCls}`}
           title="버전 타임라인 열기"
         >
           🕹️ v{curIdx >= 0 ? String(curIdx).padStart(2, "0") : "—"}

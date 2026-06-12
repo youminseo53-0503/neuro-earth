@@ -5,6 +5,7 @@ import { isPandemicVersion, LATEST } from "@/lib/versions";
 import { useViz } from "@/store/useViz";
 import { useExhibition } from "@/store/useExhibition";
 import { useSheet } from "@/store/useSheet";
+import { useIdle } from "@/store/useIdle";
 
 /**
  * 하단 중앙 모드 바 — 실시간 / 창세 / 팬데믹 / 회복.
@@ -18,6 +19,7 @@ export function ScenarioBar() {
   const setMode = useViz((s) => s.setMode);
   const auto = useExhibition((s) => s.auto);
   const sheetStage = useSheet((s) => s.stage); // 모바일 시트가 열려 있으면 바는 숨김(시트 헤더 배지가 대신)
+  const idle = useIdle((s) => s.idle); // 무반응 시 어트랙트 모드 — 바 숨김
 
   // 팬데믹은 별도 버전 라인 → 그 버전을 보는 중이면 하단 바도 '팬데믹' 활성
   const activeMode = isPandemicVersion(versionId) ? "pandemic" : mode;
@@ -40,9 +42,9 @@ export function ScenarioBar() {
 
   return (
     <div
-      className={`pointer-events-none absolute bottom-28 left-1/2 z-20 w-max max-w-[calc(100vw-16px)] -translate-x-1/2 select-none lg:bottom-4 lg:max-w-none ${
+      className={`pointer-events-none absolute bottom-28 left-1/2 z-20 w-max max-w-[calc(100vw-16px)] -translate-x-1/2 select-none transition-opacity duration-700 lg:bottom-4 lg:max-w-none ${
         sheetStage !== "peek" ? "max-lg:hidden" : ""
-      }`}
+      } ${idle ? "opacity-0" : "opacity-100"}`}
     >
       {activeInfo && (
         <div className="mb-2 flex items-center justify-center gap-2">
@@ -59,7 +61,7 @@ export function ScenarioBar() {
         </div>
       )}
 
-      <div className="pointer-events-auto flex items-center gap-1 overflow-x-auto rounded-full border border-panel-border bg-black/70 p-1 backdrop-blur-sm">
+      <div className={`flex items-center gap-1 overflow-x-auto rounded-full border border-panel-border bg-black/70 p-1 backdrop-blur-sm ${idle ? "pointer-events-none" : "pointer-events-auto"}`}>
         {/* 자동순환 토글 — 켜면 시나리오를 스스로 왔다갔다(전시 모드) */}
         <button
           onClick={onToggleAuto}

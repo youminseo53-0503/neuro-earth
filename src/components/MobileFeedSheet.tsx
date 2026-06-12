@@ -7,6 +7,7 @@ import { isPandemicVersion } from "@/lib/versions";
 import { useSheet, type SheetStage } from "@/store/useSheet";
 import { useUI } from "@/store/useUI";
 import { useViz } from "@/store/useViz";
+import { useIdle } from "@/store/useIdle";
 import { PromptFeed } from "./PromptFeed";
 
 // 시트는 높이 고정(92dvh) + translateY로만 움직임 — height 애니메이션과 달리
@@ -35,6 +36,7 @@ export function MobileFeedSheet() {
   const { earthVisible, toggleEarth } = useUI();
   const versionId = useViz((s) => s.versionId);
   const vizMode = useViz((s) => s.mode);
+  const idle = useIdle((s) => s.idle);
   const touchY = useRef<number | null>(null);
   const swiped = useRef(false); // 스와이프로 스냅했으면 브라우저가 합성하는 click 무시(이중 전환 방지)
 
@@ -96,8 +98,8 @@ export function MobileFeedSheet() {
       )}
 
       <div
-        className="fixed inset-x-0 bottom-0 z-30 mx-auto flex h-[92dvh] w-full max-w-[640px] flex-col rounded-t-2xl border-t border-x border-panel-border bg-[#070b16]/95 backdrop-blur-md transition-transform duration-300 will-change-transform"
-        style={{ transform: TRANSLATE[stage] }}
+        className="fixed inset-x-0 bottom-0 z-30 mx-auto flex h-[92dvh] w-full max-w-[640px] flex-col rounded-t-2xl border-t border-x border-panel-border bg-[#070b16]/95 backdrop-blur-md transition-transform duration-500 will-change-transform"
+        style={{ transform: idle && stage === "peek" ? "translateY(100%)" : TRANSLATE[stage] }}
       >
         {/* 손잡이 + 헤더(여기서만 드래그) */}
         <div
