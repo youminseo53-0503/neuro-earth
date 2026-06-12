@@ -34,7 +34,7 @@ export const useViz = create<VizState>((set, get) => ({
     set({ config: configFor(v, m), versionId: id, mode: m });
   },
   setMode: (mode) => {
-    if (mode !== "live" && mode !== "genesis" && mode !== "pandemic") return;
+    if (mode !== "live" && mode !== "genesis" && mode !== "pandemic" && mode !== "trauma") return;
     const m = mode as ViewMode;
     const cur = VERSIONS.find((x) => x.id === get().versionId);
     if (cur?.modes?.[m]) {

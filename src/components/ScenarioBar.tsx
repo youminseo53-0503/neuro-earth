@@ -54,15 +54,16 @@ export function ScenarioBar() {
   };
 
   return (
+    // 고정폭 박스를 한 번만 중심 정렬 → 안의 배지/버튼이 내용에 따라 너비가 변해도 서로를 안 민다(CLS 0).
     <div
-      className={`pointer-events-none absolute bottom-28 left-1/2 z-20 w-max max-w-[calc(100vw-16px)] -translate-x-1/2 select-none transition-opacity duration-700 lg:bottom-4 lg:max-w-none ${
+      className={`pointer-events-none absolute bottom-28 left-1/2 z-20 flex w-[min(calc(100vw-1rem),560px)] -translate-x-1/2 flex-col items-center select-none transition-opacity duration-700 lg:bottom-4 ${
         sheetStage !== "peek" ? "max-lg:hidden" : ""
       } ${idle ? "opacity-0" : "opacity-100"}`}
     >
       {activeInfo && (
-        <div className="mb-2 flex items-center justify-center gap-2">
+        <div className="mb-2 flex w-full justify-center">
           <span
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
+            className={`max-w-full truncate rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
               activeInfo.kind === "live"
                 ? "bg-neon-green/15 text-neon-green ring-1 ring-neon-green/40"
                 : "bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/40"
@@ -70,11 +71,10 @@ export function ScenarioBar() {
           >
             {activeInfo.badge}
           </span>
-          <span className="hidden font-mono text-[10px] text-white/45 lg:inline">{activeInfo.blurb}</span>
         </div>
       )}
 
-      <div className={`flex items-center gap-1 overflow-x-auto rounded-full border border-panel-border bg-black/70 p-1 backdrop-blur-sm ${idle ? "pointer-events-none" : "pointer-events-auto"}`}>
+      <div className={`flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-panel-border bg-black/70 p-1 backdrop-blur-sm ${idle ? "pointer-events-none" : "pointer-events-auto"}`}>
         {/* 자동순환 토글 — exhibit 지원 버전에서만 보인다(자동재생 전 버전엔 아예 없음) */}
         {canAuto && (
           <button
