@@ -26,9 +26,10 @@ export function IdleController() {
         if (useViz.getState().config.attract) setIdle(true); // 어트랙트 버전만 숨김
       }, IDLE_MS);
     };
-    // 어트랙트가 아닌 버전으로 전환되면(자동순환 등) 숨겨둔 UI를 즉시 되살린다
-    const unsubViz = useViz.subscribe((s) => {
-      if (!s.config.attract) setIdle(false);
+    // 어트랙트 버전을 '떠나는' 순간에만 숨겨둔 UI를 되살린다(엣지 감지).
+    // 매 변경마다 깨우면 비-어트랙트 버전에서 수동 비우기가 모드전환 때 풀려버림 → 엣지로 한정.
+    const unsubViz = useViz.subscribe((s, prev) => {
+      if (prev.config.attract && !s.config.attract) setIdle(false);
     });
     const onMove = () => {
       const now = Date.now();

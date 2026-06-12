@@ -390,6 +390,27 @@ export const VERSIONS: VizVersion[] = [
       }),
     },
   },
+  // ── 30 뷰 모드 v2 — 화면비 맞춤(세로/가로 짤림 해소) + 몰입 비우기(탭 한 번에 전부 복귀) ──
+  //     fit-to-aspect·수동 비우기는 전역(모든 버전 공통)이라 시뮬은 v29와 동일. 기본은 attract=false
+  //     (자동 9초 숨김 끔 → 데스크탑 독서 중 사라지는 문제 없음). 자동 어트랙트는 v29(설치용)로 존치.
+  {
+    id: "s-view2",
+    n: 93,
+    label: "뷰 모드 v2 — 화면비 맞춤 · 몰입 비우기",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 30,
+        areaCap: true,
+        softCapRamp: 3600,
+        maxNodes: 8000,
+        exhibit: true,
+      }),
+    },
+  },
 ];
 
 // 기본 진입점 = 마지막 '단계(staged)' 버전(s-civarea). 팬데믹은 별도 라인이라 기본값으로 안 잡음.
