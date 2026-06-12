@@ -1,32 +1,20 @@
 // OpenSky 실시간 항공 — 서버에서만 키 사용(클라 노출 X).
 // OAuth2 client_credentials로 토큰 발급 → /states/all → 공항별 '근처 비행기 수' 집계.
-import { fetch as undiciFetch, Agent } from "undici";
-
-// OpenSky 서버는 독일(DLR). 미국 동부(iad1)에선 연결이 막히는/안 닿는 듯 → 프랑크푸르트(fra1)에서 실행.
-export const runtime = "nodejs";
-export const preferredRegion = "fra1";
-
 const TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const STATES_URL = "https://opensky-network.org/api/states/all";
 
-// undici 자체 fetch + Agent를 '버전 맞춰' 사용(Node 내장 fetch에 외부 undici Agent를 꽂으면
-// UND_ERR_INVALID_ARG로 터진다). 서버리스 IPv6 happy-eyeballs 회피 위해 IPv4 강제.
-const ipv4Dispatcher = new Agent({ connect: { family: 4 } });
+// 참고: OpenSky는 클라우드(Vercel) IP로의 연결을 방화벽 차단함(미국·유럽 리전 모두 TCP connect timeout 확인).
+// 그래서 배포본은 OpenSky에 못 닿아 시뮬레이션으로 폴백한다. 로컬(주거망)에선 정상 동작.
 const UA = "neuro-earth/1.0 (+https://github.com/youminseo53-0503/neuro-earth)";
 
-/** 타임아웃·User-Agent·IPv4 강제를 입힌 fetch(연결 실패/지연으로 함수가 매달리지 않게). */
-function osFetch(
-  url: string,
-  opts: { method?: string; headers?: Record<string, string>; body?: string | URLSearchParams } = {},
-) {
-  return undiciFetch(url, {
-    method: opts.method,
+/** 타임아웃·UA를 입힌 fetch — 연결 실패/지연으로 함수가 매달리지 않게. */
+function osFetch(url: string, opts: RequestInit = {}) {
+  return fetch(url, {
+    ...opts,
     headers: { "user-agent": UA, ...(opts.headers || {}) },
-    body: opts.body,
-    signal: AbortSignal.timeout(12000),
-    dispatcher: ipv4Dispatcher,
-  }) as unknown as Promise<Response>;
+    signal: AbortSignal.timeout(8000),
+  });
 }
 
 // 주요 공항 거점 (ICAO, 위도, 경도) — 대륙별 균형 있게 분포
@@ -85,7 +73,6 @@ const AIRPORTS: { icao: string; lat: number; lon: number }[] = [
 
 let tokenCache: { token: string; exp: number } | null = null;
 let lastGood: { body: string; at: number } | null = null;
-let lastTokenError: unknown = null; // 진단용 — 마지막 토큰 실패 원인
 
 async function getToken(): Promise<string | null> {
   if (tokenCache && Date.now() < tokenCache.exp) return tokenCache.token;
@@ -114,21 +101,13 @@ async function getToken(): Promise<string | null> {
     };
     return tokenCache.token;
   } catch (e) {
-    // 연결 자체 실패(fetch failed 등) — 던지지 말고 null 반환(라우트는 stale/시뮬로 폴백). 원인은 로깅.
-    const err = e as Error & { cause?: { code?: string; errno?: number } };
-    lastTokenError = {
-      name: err?.name,
-      message: err?.message,
-      cause: String(err?.cause ?? ""),
-      code: err?.cause?.code,
-    };
-    console.error("opensky token fetch failed:", lastTokenError);
+    // 연결 실패(클라우드 IP 차단 등) — 던지지 말고 null 반환(라우트는 stale/시뮬로 폴백).
+    console.error("opensky token fetch failed:", (e as Error)?.message ?? e);
     return null;
   }
 }
 
-export async function GET(req: Request) {
-  const debug = new URL(req.url).searchParams.has("debug");
+export async function GET() {
   const serveStale = () =>
     lastGood
       ? new Response(lastGood.body, {
@@ -144,11 +123,7 @@ export async function GET(req: Request) {
   }
 
   const token = await getToken();
-  if (!token) {
-    if (debug) return Response.json({ ok: false, hasEnv: !!process.env.OPENSKY_CLIENT_ID, lastTokenError });
-    return serveStale() ?? new Response("no token (env?)", { status: 502 });
-  }
-  if (debug) return Response.json({ ok: true, gotToken: true });
+  if (!token) return serveStale() ?? new Response("no token (env?)", { status: 502 });
 
   try {
     const res = await osFetch(STATES_URL, { headers: { authorization: `Bearer ${token}` } });
