@@ -34,7 +34,10 @@ body {
   overscroll-behavior: none;
 }
 
-/* 피드 스크롤바 (네온 톤) */
+/* 피드 스크롤바 (네온 톤) — 공간 미리 예약(스크롤바 등장으로 폭이 줄며 생기는 시프트 방지) */
+.feed-scroll {
+  scrollbar-gutter: stable;
+}
 .feed-scroll::-webkit-scrollbar {
   width: 8px;
 }

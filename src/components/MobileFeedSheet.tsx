@@ -9,10 +9,18 @@ import { useUI } from "@/store/useUI";
 import { useViz } from "@/store/useViz";
 import { PromptFeed } from "./PromptFeed";
 
-const HEIGHT: Record<SheetStage, string> = {
-  peek: "h-24",
-  half: "h-[52dvh]",
-  full: "h-[92dvh]",
+// 시트는 높이 고정(92dvh) + translateY로만 움직임 — height 애니메이션과 달리
+// transform은 CLS(레이아웃 시프트)에 안 잡히고 GPU 합성이라 폰에서도 부드럽다.
+const TRANSLATE: Record<SheetStage, string> = {
+  peek: "translateY(calc(92dvh - 6rem))", // 상단 6rem(h-24)만 보임
+  half: "translateY(40dvh)", // 52dvh 보임
+  full: "translateY(0)",
+};
+/** 시트 내용 영역 높이 — 보이는 만큼만(헤더 ~60px 제외). 단계 전환 시 즉시 스냅 */
+const CONTENT_H: Record<SheetStage, string> = {
+  peek: "0px",
+  half: "calc(52dvh - 60px)",
+  full: "calc(92dvh - 60px)",
 };
 
 /**
@@ -88,7 +96,8 @@ export function MobileFeedSheet() {
       )}
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-[640px] flex-col rounded-t-2xl border-t border-x border-panel-border bg-[#070b16]/95 backdrop-blur-md transition-[height] duration-300 ${HEIGHT[stage]}`}
+        className="fixed inset-x-0 bottom-0 z-30 mx-auto flex h-[92dvh] w-full max-w-[640px] flex-col rounded-t-2xl border-t border-x border-panel-border bg-[#070b16]/95 backdrop-blur-md transition-transform duration-300 will-change-transform"
+        style={{ transform: TRANSLATE[stage] }}
       >
         {/* 손잡이 + 헤더(여기서만 드래그) */}
         <div
@@ -135,9 +144,12 @@ export function MobileFeedSheet() {
           )}
         </div>
 
-        {/* 내용 */}
+        {/* 내용 — 보이는 높이만큼만(시트 자체는 92dvh 고정, 아랫부분은 화면 밖) */}
         {stage !== "peek" && (
-          <div className="min-h-0 flex-1 overflow-hidden border-t border-panel-border">
+          <div
+            className="min-h-0 overflow-hidden border-t border-panel-border"
+            style={{ height: CONTENT_H[stage] }}
+          >
             {mode === "feed" ? (
               <PromptFeed compact />
             ) : (

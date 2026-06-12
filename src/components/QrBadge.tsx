@@ -29,7 +29,8 @@ export function QrBadge() {
     setUrl(fixed || window.location.origin);
   }, []);
 
-  if (!url) return null;
+  // 버튼은 url과 무관하게 항상 렌더 — 늦게 나타나며 옆 버튼을 밀면 그게 곧 CLS.
+  // url은 모달을 열 때쯤(마운트 직후 effect)이면 준비돼 있다.
   const host = (() => {
     try {
       return new URL(url).hostname;
@@ -49,7 +50,7 @@ export function QrBadge() {
         📱 QR
       </button>
 
-      {show && (
+      {show && url && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setShow(false)}
