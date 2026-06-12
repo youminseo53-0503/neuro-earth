@@ -1,8 +1,30 @@
 // OpenSky 실시간 항공 — 서버에서만 키 사용(클라 노출 X).
 // OAuth2 client_credentials로 토큰 발급 → /states/all → 공항별 '근처 비행기 수' 집계.
+import { Agent } from "undici";
+
 const TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const STATES_URL = "https://opensky-network.org/api/states/all";
+
+// 서버리스(Vercel)에서 IPv6 happy-eyeballs로 외부 API 연결이 'fetch failed' 나는 걸 피해 IPv4 강제.
+let ipv4Dispatcher: Agent | null = null;
+try {
+  ipv4Dispatcher = new Agent({ connect: { family: 4 } });
+} catch {
+  ipv4Dispatcher = null;
+}
+const UA = "neuro-earth/1.0 (+https://github.com/youminseo53-0503/neuro-earth)";
+
+/** 타임아웃·User-Agent·IPv4 강제를 입힌 fetch(연결 실패/지연으로 함수가 매달리지 않게). */
+function osFetch(url: string, opts: RequestInit = {}) {
+  const final = {
+    ...opts,
+    headers: { "user-agent": UA, ...(opts.headers || {}) },
+    signal: AbortSignal.timeout(8000),
+    ...(ipv4Dispatcher ? { dispatcher: ipv4Dispatcher } : {}),
+  };
+  return fetch(url, final as RequestInit);
+}
 
 // 주요 공항 거점 (ICAO, 위도, 경도) — 대륙별 균형 있게 분포
 const AIRPORTS: { icao: string; lat: number; lon: number }[] = [
@@ -66,23 +88,32 @@ async function getToken(): Promise<string | null> {
   const id = process.env.OPENSKY_CLIENT_ID;
   const secret = process.env.OPENSKY_CLIENT_SECRET;
   if (!id || !secret) return null;
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: id,
-      client_secret: secret,
-    }),
-  });
-  if (!res.ok) return null;
-  const j = await res.json();
-  if (!j.access_token) return null;
-  tokenCache = {
-    token: j.access_token,
-    exp: Date.now() + Math.max(60, (j.expires_in ?? 1800) - 60) * 1000,
-  };
-  return tokenCache.token;
+  try {
+    const res = await osFetch(TOKEN_URL, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: id,
+        client_secret: secret,
+      }),
+    });
+    if (!res.ok) {
+      console.error("opensky token: HTTP", res.status);
+      return null;
+    }
+    const j = await res.json();
+    if (!j.access_token) return null;
+    tokenCache = {
+      token: j.access_token,
+      exp: Date.now() + Math.max(60, (j.expires_in ?? 1800) - 60) * 1000,
+    };
+    return tokenCache.token;
+  } catch (e) {
+    // 연결 자체 실패(fetch failed 등) — 던지지 말고 null 반환(라우트는 stale/시뮬로 폴백). 원인은 로깅.
+    console.error("opensky token fetch failed:", (e as Error)?.cause ?? e);
+    return null;
+  }
 }
 
 export async function GET() {
@@ -104,7 +135,7 @@ export async function GET() {
   if (!token) return serveStale() ?? new Response("no token (env?)", { status: 502 });
 
   try {
-    const res = await fetch(STATES_URL, { headers: { authorization: `Bearer ${token}` } });
+    const res = await osFetch(STATES_URL, { headers: { authorization: `Bearer ${token}` } });
     if (!res.ok) return serveStale() ?? new Response("upstream error", { status: 502 });
     const data = await res.json();
     const states: unknown[][] = Array.isArray(data?.states) ? data.states : [];
