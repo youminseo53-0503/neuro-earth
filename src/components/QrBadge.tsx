@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 /** 폰에서 못 여는 주소(자기 자신/내부망 전용) — QR 띄울 때 경고 */
@@ -21,16 +21,13 @@ function unreachableFromPhone(host: string): boolean {
  *   localhost 등 폰이 못 여는 주소면 경고를 함께 표시.
  */
 export function QrBadge() {
-  const [show, setShow] = useState(false);
+  // url이 비어있으면 '닫힘', 채워지면 '열림'. effect 없이 클릭 시점에 주소를 읽는다
+  // (window는 클릭 시점엔 항상 있음 → SSR/hydration·cascading-render 문제 없음).
   const [url, setUrl] = useState("");
 
-  useEffect(() => {
-    const fixed = process.env.NEXT_PUBLIC_QR_URL;
-    setUrl(fixed || window.location.origin);
-  }, []);
+  const open = () => setUrl(process.env.NEXT_PUBLIC_QR_URL || window.location.origin);
+  const close = () => setUrl("");
 
-  // 버튼은 url과 무관하게 항상 렌더 — 늦게 나타나며 옆 버튼을 밀면 그게 곧 CLS.
-  // url은 모달을 열 때쯤(마운트 직후 effect)이면 준비돼 있다.
   const host = (() => {
     try {
       return new URL(url).hostname;
@@ -43,17 +40,17 @@ export function QrBadge() {
   return (
     <>
       <button
-        onClick={() => setShow(true)}
+        onClick={open}
         title="폰으로 보기 — QR 접속"
         className="shrink-0 rounded-lg border border-panel-border px-2.5 py-1.5 text-[clamp(11px,0.8vw,16px)] font-semibold text-white/70 transition hover:border-neon-cyan/50 hover:text-neon-cyan"
       >
         📱 QR
       </button>
 
-      {show && url && (
+      {url && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShow(false)}
+          onClick={close}
         >
           <div
             className="flex flex-col items-center gap-3 rounded-2xl border border-panel-border bg-[#0a1020] p-6"
@@ -73,7 +70,7 @@ export function QrBadge() {
               </div>
             )}
             <button
-              onClick={() => setShow(false)}
+              onClick={close}
               className="mt-1 rounded-lg border border-panel-border px-4 py-1.5 text-[12px] text-white/60 transition hover:text-neon-cyan"
             >
               닫기
