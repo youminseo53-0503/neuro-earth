@@ -43,7 +43,7 @@ function buildCandidates(airports: Ap[]): RouteEvent[] {
 }
 
 /**
- * 실시간 항공 유동인구 (OpenSky) + 장거리 노선(축삭).
+ * 실시간 항공 유동인구 (ADS-B) + 장거리 노선(축삭).
  *   · poll: 모든 공항에 기본 시드(존재) + 근처 비행기 수(상한)로 크기 modulation.
  *     → 아프리카 등 데이터 적은 곳도 작게 뜨고, 인도/미국이 폭주하지 않음(균형).
  *   · pollRoutes: 장거리 공항 쌍을 축삭으로 연결(엔진 maxDeg가 자연 제한).
@@ -55,7 +55,7 @@ export function createFlightsLiveSource(): SignalSource {
 
   return {
     id: "flightslive",
-    label: "실시간 항공 유동인구 (OpenSky)",
+    label: "실시간 항공 유동인구 (ADS-B)",
     enabled: true,
     refreshMs: 300_000,
 
