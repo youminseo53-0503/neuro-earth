@@ -67,6 +67,9 @@ export interface VizConfig {
   /** 자동재생(전시 모드) 지원 — 시나리오 자동순환 + 카메라 무빙 + 클라이맥스 연출(v27+).
    *  옛 버전은 끔 → 자동순환·카메라가 과거 버전 화면을 건드리지 않는다(미래가 과거 안 바꿈) */
   exhibit?: boolean;
+  /** 어트랙트 모드 — 무반응(9초) 시 UI 크롬을 다 숨기고 지구만(설치/전시용). v29+.
+   *  옛 전시 버전(27·28)은 끔 → 새 기능이 과거 버전 화면을 건드리지 않는다(미래가 과거 안 바꿈) */
+  attract?: boolean;
 }
 
 /** 단계를 보는 방식 — 직각 축 */
@@ -364,6 +367,26 @@ export const VERSIONS: VizVersion[] = [
         softCapRamp: 3600,
         maxNodes: 8000,
         exhibit: true,
+      }),
+    },
+  },
+  // ── 29 어트랙트(설치 모드) — 무반응 시 UI 숨기고 지구만. 시뮬은 27·28과 동일, attract 플래그만 추가 ──
+  {
+    id: "s-attract",
+    n: 91,
+    label: "어트랙트 — 설치 모드 (무반응 시 UI 숨김)",
+    modes: {
+      live: live({ mortal: true, lifespan: 900, softCap: 6500, maxNodes: 8000, exhibit: true, attract: true }),
+      genesis: genCiv({
+        mortal: true,
+        civAnchors: true,
+        lifespan: 900,
+        localCap: 30,
+        areaCap: true,
+        softCapRamp: 3600,
+        maxNodes: 8000,
+        exhibit: true,
+        attract: true,
       }),
     },
   },

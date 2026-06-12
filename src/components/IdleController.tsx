@@ -2,12 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { useIdle } from "@/store/useIdle";
+import { useViz } from "@/store/useViz";
 
 const IDLE_MS = 9000; // 이만큼 무반응이면 어트랙트 모드(UI 숨김)
 
 /**
  * 무반응 감지기(화면 없음). 어떤 입력(터치·포인터·키·휠·마우스이동)이든 들어오면 깨어나고,
  * IDLE_MS 동안 아무것도 없으면 idle=true. 마우스이동은 throttle로 과한 리셋 방지.
+ *
+ * 단, idle 진입은 attract 버전(v29+)에서만 — 옛 버전·일반 버전은 UI를 절대 숨기지 않는다
+ * (미래가 과거 안 바꿈). 어트랙트가 아닌 버전으로 바뀌면 즉시 깨운다.
  */
 export function IdleController() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -18,8 +22,14 @@ export function IdleController() {
     const wake = () => {
       setIdle(false);
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setIdle(true), IDLE_MS);
+      timer.current = setTimeout(() => {
+        if (useViz.getState().config.attract) setIdle(true); // 어트랙트 버전만 숨김
+      }, IDLE_MS);
     };
+    // 어트랙트가 아닌 버전으로 전환되면(자동순환 등) 숨겨둔 UI를 즉시 되살린다
+    const unsubViz = useViz.subscribe((s) => {
+      if (!s.config.attract) setIdle(false);
+    });
     const onMove = () => {
       const now = Date.now();
       if (now - lastMove.current > 600) {
@@ -37,6 +47,7 @@ export function IdleController() {
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      unsubViz();
       window.removeEventListener("pointerdown", wake);
       window.removeEventListener("touchstart", wake);
       window.removeEventListener("keydown", wake);
