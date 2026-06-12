@@ -133,6 +133,7 @@ function drawSynapses(
   dummy: THREE.Object3D,
   dir: THREE.Vector3,
   sever: number,
+  mourn: boolean, // 전쟁 직후 정적 — 살아남은 선을 보라색으로(활동과 무관하게 또렷)
 ) {
   let c = 0;
   for (let s = 0; s < syns.length && c < SYN_CAP; s++) {
@@ -159,9 +160,15 @@ function drawSynapses(
     dummy.scale.set(th, len, th);
     dummy.updateMatrix();
     sm.setMatrixAt(c, dummy.matrix);
-    const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35) * alpha;
-    if (e.sign > 0) color.setRGB(0.12 * t, 0.85 * t, 0.65 * t);
-    else color.setRGB(0.85 * t, 0.2 * t, 0.35 * t);
+    if (mourn) {
+      // 보라색 — 활동(act)이 얼어 사그라들어도 또렷하게(가중치로만 약간 변주)
+      const p = 0.4 + 0.6 * Math.min(1, e.w);
+      color.setRGB(0.5 * p, 0.14 * p, 0.85 * p);
+    } else {
+      const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35) * alpha;
+      if (e.sign > 0) color.setRGB(0.12 * t, 0.85 * t, 0.65 * t);
+      else color.setRGB(0.85 * t, 0.2 * t, 0.35 * t);
+    }
     sm.setColorAt(c, color);
     c++;
   }
@@ -187,6 +194,7 @@ function drawRoutes(
   config: VizConfig,
   earthShown: boolean,
   pandemicHalt: number | null, // null=평소(청록) / 0..1=팬데믹(감염 노선 빨강, 봉쇄 시 0으로 페이드)
+  mourn: boolean, // 전쟁 직후 정적 — 살아남은 노선을 보라색으로
 ) {
   let rc = 0;
   const maxSeg = ROUTE_CAP * (ARC_SEG - 1);
@@ -214,7 +222,10 @@ function drawRoutes(
     const bulge = BULGE_MIN + BULGE_SPAN * (Math.acos(bdot) / Math.PI);
     const flow = Math.min(1, 0.3 + e.act * 1.0 + Math.max(0, e.w - 0.3) * 0.5);
     let r: number, g: number, bl: number;
-    if (pandemicHalt !== null) {
+    if (mourn) {
+      const p = 0.45 + 0.55 * flow; // 보라(살아남은 노선)
+      r = 0.5 * p; g = 0.14 * p; bl = 0.85 * p;
+    } else if (pandemicHalt !== null) {
       // 팬데믹 — 감염된 끝점이 있으면 항공로가 빨갛게(바이러스가 노선을 탐). 봉쇄 시 halt→0로 페이드(비행 멎음).
       const a2 = nodes[e.i], b2 = nodes[e.j];
       const infected = a2.inf === 1 || b2.inf === 1;
@@ -374,6 +385,7 @@ export function EmergentLayer() {
     let arc: PandemicHud | null = null;
     if (config.pandemicArc) arc = director.current.update(net);
     // 외상/전쟁 시네마틱 — 타격(net.lesion 1회) + 자막/카메라/섬광. 재배선은 엔진 가소성이 emergent.
+    // 전쟁 디렉터 — net.decimate 타격 + net.frozen(잿더미 정적)을 자기 안에서 건다(다른 버전 불변).
     let trauma: TraumaHud | null = null;
     if (config.traumaArc) trauma = traumaDir.current.update(net);
 
@@ -408,9 +420,10 @@ export function EmergentLayer() {
     const phalt = config.pandemic ? (arc ? arc.halt : 1) : null;
     // 팬데믹 단절 — pandemicSever 버전(v31)에서만. 옛 팬데믹(v26)은 sever=0이라 기존과 동일.
     const sever = config.pandemicSever && arc ? arc.severance : 0;
+    const mourn = !!(trauma && trauma.mourn); // 전쟁 직후 정적 — 보라색
     drawNodes(mesh, net.nodes, config, NODE_LV, color, dummy);
-    drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir, sever);
-    drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt);
+    drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir, sever, mourn);
+    drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt, mourn);
 
     // 클라이맥스/카메라 연출은 자동재생 버전(v27+, exhibit)부터 — 옛 버전 화면은 안 건드림.
     // 팬데믹(v26)은 자체 시네마틱(pandemicArc)이라 exhibit 무관하게 그대로.

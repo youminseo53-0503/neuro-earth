@@ -47,10 +47,10 @@ export const MODES: ModeInfo[] = [
   },
   {
     id: "trauma",
-    label: "외상",
+    label: "전쟁",
     kind: "scenario",
-    badge: "시나리오 · 외상(전쟁·두부외상) — 병변과 가소성 재배선",
-    blurb: "한 방의 타격으로 회로가 끊기고, 가소성이 죽은 자리를 우회해 다시 잇는다",
+    badge: "시나리오 · 제3차 세계대전 — 문명 절멸과 잿더미 위 재건",
+    blurb: "한순간에 열에 아홉이 스러지고, 잿더미의 정적 끝에 가소성이 망을 다시 짠다",
     status: "ready",
   },
   {
