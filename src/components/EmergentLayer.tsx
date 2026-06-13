@@ -7,7 +7,7 @@ import { EmergentNetwork, type ENode, type ESyn, type EConfig } from "@/lib/emer
 import type { VizConfig } from "@/lib/versions";
 import { PandemicDirector, type PandemicHud } from "@/lib/pandemic";
 import { TraumaDirector, type TraumaHud } from "@/lib/trauma";
-import { EARTH_RADIUS } from "@/lib/geo";
+import { EARTH_RADIUS, latLonToVec3 } from "@/lib/geo";
 import { isPhone } from "@/lib/device";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
@@ -20,6 +20,14 @@ const GENESIS_SOURCES = ["genesis", "genesisciv", "local"]; // 창세 계열 소
 const GENESIS_CLIMAX_N = 5000; // 창세가 '다 자란' 최고조(비행기 폭발기 이후)
 
 const SURF = EARTH_RADIUS * 1.014;
+// 전쟁 폭탄 — 주요 도시/지역 위로 섬광 줄기가 쏟아진다(incoming phase에서 낙하)
+const BOMB_TARGETS: [number, number][] = [
+  [40, -100], [51, 0], [48, 2], [55, 37], [39, 116], [35, 139], [37, 127],
+  [28, 77], [-23, -46], [30, 31], [-33, 151], [1, 104], [25, 55], [19, -99],
+];
+const BOMB_N = BOMB_TARGETS.length;
+const BOMB_HIGH = EARTH_RADIUS * 2.5; // 낙하 시작 고도
+const BOMB_LOW = EARTH_RADIUS * 1.03; // 착탄 지점
 const NODE_SIZE = 0.014;
 // 시냅스 실린더 렌더 상한 — 모바일은 절반(렌더 전용 캡, 엔진 동역학 무관)
 const SYN_CAP = isPhone() ? 6000 : 12000;
@@ -314,9 +322,24 @@ export function EmergentLayer() {
 
   const nodesRef = useRef<THREE.InstancedMesh>(null);
   const synRef = useRef<THREE.InstancedMesh>(null);
+  const bombRef = useRef<THREE.InstancedMesh>(null);
   const color = useMemo(() => new THREE.Color(), []);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const dir = useMemo(() => new THREE.Vector3(), []);
+  // 폭탄 낙하 방향(단위벡터)과 메시 — 전쟁 incoming에서만 보임
+  const bombDirs = useMemo(() => BOMB_TARGETS.map(([la, lo]) => latLonToVec3(la, lo, 1)), []);
+  const bombGeo = useMemo(() => new THREE.SphereGeometry(1, 8, 8), []);
+  const bombMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(1.0, 0.72, 0.32),
+        toneMapped: false,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    [],
+  );
   const tickRef = useRef(0);
   const frameRef = useRef(0);
   const prevSyn = useRef(0);
@@ -324,6 +347,7 @@ export function EmergentLayer() {
   const director = useRef(new PandemicDirector());
   const traumaDir = useRef(new TraumaDirector());
   const prevClimax = useRef(false);
+  const prevEarthOff = useRef(false);
   const handedOff = useRef(false);
   const setPandemic = usePandemic((s) => s.set);
 
@@ -451,6 +475,43 @@ export function EmergentLayer() {
       ui.setEarthVisible(!climax); // 진입 → 자동 끔 / 해제 → 다시 켬
       prevClimax.current = climax;
     }
+    // 전쟁 정적 — 지구 투명(신경계 느낌). 엣지 1회성(트라우마 끝나면 trauma=null→earthOff=false→다시 켬).
+    const earthOff = !!(trauma && trauma.earthOff);
+    if (earthOff !== prevEarthOff.current) {
+      ui.setEarthVisible(!earthOff);
+      prevEarthOff.current = earthOff;
+    }
+
+    // 폭탄 낙하 — incoming phase(bombT 0→1)에서 위에서 섬광 줄기가 쏟아진다(엇갈려 착탄). 그 외엔 숨김.
+    const bm = bombRef.current;
+    if (bm) {
+      const bt = trauma ? trauma.bombT : 0;
+      if (bt > 0 && bt < 1) {
+        for (let i = 0; i < BOMB_N; i++) {
+          const d = bombDirs[i];
+          const tp = Math.min(1, Math.max(0, (bt - i * 0.012) / 0.85)); // 엇갈린 낙하
+          if (tp <= 0 || tp >= 1) {
+            dummy.scale.setScalar(0);
+          } else {
+            const r = BOMB_HIGH + (BOMB_LOW - BOMB_HIGH) * (tp * tp); // 중력처럼 가속
+            dummy.position.set(d.x * r, d.y * r, d.z * r);
+            dummy.scale.setScalar(0.045 + tp * 0.05); // 다가올수록 커짐
+          }
+          dummy.rotation.set(0, 0, 0);
+          dummy.updateMatrix();
+          bm.setMatrixAt(i, dummy.matrix);
+        }
+        bm.instanceMatrix.needsUpdate = true;
+        bm.visible = true;
+      } else if (bm.visible) {
+        dummy.scale.setScalar(0);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        for (let i = 0; i < BOMB_N; i++) bm.setMatrixAt(i, dummy.matrix);
+        bm.instanceMatrix.needsUpdate = true;
+        bm.visible = false;
+      }
+    }
 
     if (frameRef.current % 6 === 0) {
       if (arc) setPandemic({ active: true, phase: arc.phase, dateLabel: arc.dateLabel, caption: arc.caption, infectedPct: arc.infectedPct, bar: true });
@@ -465,6 +526,7 @@ export function EmergentLayer() {
     <group>
       <lineSegments geometry={routeGeom} material={routeMat} frustumCulled={false} />
       <instancedMesh ref={synRef} args={[synGeo, synMat, SYN_CAP]} frustumCulled={false} />
+      <instancedMesh ref={bombRef} args={[bombGeo, bombMat, BOMB_N]} frustumCulled={false} visible={false} />
       <instancedMesh
         ref={nodesRef}
         args={[undefined, undefined, net.nodes.length]}

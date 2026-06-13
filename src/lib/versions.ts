@@ -456,7 +456,7 @@ export const VERSIONS: VizVersion[] = [
         maxNodes: 8000,
         exhibit: true,
         traumaArc: true,
-        growthProb: 0.12,
+        growthProb: 0.09,
       }),
     },
   },
