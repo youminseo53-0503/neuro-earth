@@ -15,6 +15,7 @@ import { useUI, BASE_SPIN } from "@/store/useUI";
 import { useMetrics } from "@/store/useMetrics";
 import { usePandemic } from "@/store/usePandemic";
 import { useExhibition } from "@/store/useExhibition";
+import { useStage } from "@/store/useStage";
 
 const GENESIS_SOURCES = ["genesis", "genesisciv", "local"]; // 창세 계열 소스
 const GENESIS_CLIMAX_N = 5000; // 창세가 '다 자란' 최고조(비행기 폭발기 이후)
@@ -28,6 +29,7 @@ const BOMB_TARGETS: [number, number][] = [
 const BOMB_N = BOMB_TARGETS.length;
 const BOMB_HIGH = EARTH_RADIUS * 2.5; // 낙하 시작 고도
 const BOMB_LOW = EARTH_RADIUS * 1.03; // 착탄 지점
+const CONTEMPLATE_DIST = 12; // 관조 비트 — 카메라가 여기까지 빠져 지구/망이 작아짐(나레이션 자리)
 const NODE_SIZE = 0.014;
 // 시냅스 실린더 렌더 상한 — 모바일은 절반(렌더 전용 캡, 엔진 동역학 무관)
 const SYN_CAP = isPhone() ? 6000 : 12000;
@@ -413,10 +415,11 @@ export function EmergentLayer() {
     let trauma: TraumaHud | null = null;
     if (config.traumaArc) trauma = traumaDir.current.update(net);
 
-    // 시네마틱이 '오늘'/끝에 닿으면 → 실시간(라이브) 모드로 자연 전환(한 번만)
+    // 시네마틱이 '오늘'/끝에 닿으면(한 번만) → 자동: 컨트롤러에 끝났다고 알림(관조로 넘어감) / 수동: 실시간 전환
     if ((arc?.done || trauma?.done) && !handedOff.current) {
       handedOff.current = true;
-      useViz.getState().setMode("live");
+      if (useExhibition.getState().auto) useStage.getState().set({ sceneDone: true });
+      else useViz.getState().setMode("live");
     }
 
     // 봉쇄 중엔 노선 일부만. 전쟁은 타격 순간 하늘길을 걷고 routeScale 0으로 새 비행도 막아 '얼어붙는 아치' 방지.
@@ -461,7 +464,8 @@ export function EmergentLayer() {
     ui.setSpin(THREE.MathUtils.lerp(ui.spin, spinTarget, 0.02));
     // 카메라 — 팬데믹은 항상 단계별 스크립트 연출 / 라이브·창세는 전시 모드+자동일 때만 무빙
     let camDist = 0;
-    if (arc) camDist = arc.camDist;
+    if (useStage.getState().contemplate) camDist = CONTEMPLATE_DIST; // 관조 — 지구 작게(나레이션 자리)
+    else if (arc) camDist = arc.camDist;
     else if (trauma) camDist = trauma.camDist;
     else if (exhibit && useExhibition.getState().auto) {
       camDist = genesisScenario
