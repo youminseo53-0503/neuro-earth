@@ -5,6 +5,7 @@ import { useViz } from "@/store/useViz";
 import { useMetrics } from "@/store/useMetrics";
 import { useExhibition } from "@/store/useExhibition";
 import { useStage } from "@/store/useStage";
+import { usePandemic } from "@/store/usePandemic";
 import { isPandemicView } from "@/lib/versions";
 import type { Briefing } from "@/lib/briefings";
 
@@ -68,6 +69,8 @@ export function ExhibitionController() {
       }
 
       if (phase.current === "play") {
+        // 관조 진입 시점. 팬데믹/전쟁은 '회복/재건이 시작될 때'(present/rewire) 진입해서,
+        // 날짜 행진·재건이 나레이션과 '같은 비트'로 흐르게 한다(끝난 뒤가 아니라).
         let ready = false;
         if (scene === "live") {
           ready = now - enterAt.current > LIVE_PLAY_MS;
@@ -79,9 +82,10 @@ export function ExhibitionController() {
           } else {
             grownAt.current = 0;
           }
+        } else if (scene === "pandemic") {
+          ready = usePandemic.getState().phase === "present"; // 엔데믹·날짜 행진 시작
         } else {
-          // 팬데믹/전쟁 — 디렉터가 제 시네마틱을 끝냈다는 신호(EmergentLayer가 sceneDone 세팅)
-          ready = stage.sceneDone;
+          ready = usePandemic.getState().phase === "rewire"; // 전쟁 재건 시작
         }
         if (ready) {
           phase.current = "contemplate";
@@ -89,8 +93,12 @@ export function ExhibitionController() {
           stage.set({ narrKey: NARR[scene], contemplate: true, sceneDone: false });
         }
       } else {
-        // 관조 — 지구 작게 + 나레이션. 충분히 읽힌 뒤 다음 장면으로.
-        if (now - enterAt.current > CONTEMPLATE_MS) {
+        // 관조 종료 → 다음 장면. 실시간·창세는 시간(읽기), 팬데믹·전쟁은 회복/재건이 끝나면(디렉터 done).
+        const advance =
+          scene === "live" || scene === "genesis"
+            ? now - enterAt.current > CONTEMPLATE_MS
+            : stage.sceneDone;
+        if (advance) {
           const next = SCENES[(SCENES.indexOf(scene) + 1) % SCENES.length];
           stage.set({ narrKey: null, contemplate: false, sceneDone: false });
           setMode(next); // 다음 장면 — 다음 틱에 scene 변경 감지되어 play로 리셋

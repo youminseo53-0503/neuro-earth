@@ -2,6 +2,7 @@
 
 import { BRIEFINGS } from "@/lib/briefings";
 import { useStage } from "@/store/useStage";
+import { usePandemic } from "@/store/usePandemic";
 
 /**
  * 전시(자동) 나레이션 — 관조 비트에서만 뜬다(컨트롤러가 narrKey 세팅 = 카메라가 빠져 지구가 작아진 상태).
@@ -10,6 +11,7 @@ import { useStage } from "@/store/useStage";
  */
 export function ExhibitionNarration() {
   const narrKey = useStage((s) => s.narrKey);
+  const dateLabel = usePandemic((s) => s.dateLabel); // 팬데믹: 관조 동안 오늘까지 흐르는 날짜
   const live = narrKey === "live";
   const b = narrKey ? BRIEFINGS[narrKey] : null;
 
@@ -21,6 +23,14 @@ export function ExhibitionNarration() {
     >
       {b && (
         <div className="rounded-2xl border border-panel-border bg-black/55 px-5 py-4 text-center backdrop-blur-md">
+          {narrKey === "pandemic" && dateLabel && (
+            <div
+              className="mb-1 font-mono text-[clamp(20px,2vw,30px)] font-bold tracking-[0.15em] text-white/90"
+              style={{ textShadow: "0 2px 18px rgba(255,60,60,0.45)" }}
+            >
+              {dateLabel}
+            </div>
+          )}
           <div className="mb-1.5 flex items-center justify-center gap-2">
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide ${
