@@ -395,8 +395,8 @@ export function EmergentLayer() {
       useViz.getState().setMode("live");
     }
 
-    // 봉쇄 중엔 노선 일부만 / 자극 바닥값. 외상 디아시시스 땐 자극을 잠깐 낮춤.
-    const routeScale = arc ? arc.injectScale : 1;
+    // 봉쇄 중엔 노선 일부만. 전쟁은 타격 순간 하늘길을 걷고 routeScale 0으로 새 비행도 막아 '얼어붙는 아치' 방지.
+    const routeScale = arc ? arc.injectScale : trauma ? trauma.routeScale : 1;
     const nodeScale = arc ? arc.nodeScale : trauma ? trauma.nodeScale : 1;
     for (const src of sources) {
       if (!src.enabled) continue;
@@ -432,7 +432,9 @@ export function EmergentLayer() {
     const genesisGrown = exhibit && genesisScenario && net.metrics.nodes >= GENESIS_CLIMAX_N;
     const climax = (arc?.climax ?? false) || genesisGrown;
     const ui = useUI.getState();
-    ui.setSpin(THREE.MathUtils.lerp(ui.spin, climax ? 1.4 : BASE_SPIN, 0.02));
+    // 전쟁은 정적에 회전마저 멎게(trauma.spin=0). 그 외엔 기존대로(클라이맥스 가속).
+    const spinTarget = trauma ? trauma.spin : climax ? 1.4 : BASE_SPIN;
+    ui.setSpin(THREE.MathUtils.lerp(ui.spin, spinTarget, 0.02));
     // 카메라 — 팬데믹은 항상 단계별 스크립트 연출 / 라이브·창세는 전시 모드+자동일 때만 무빙
     let camDist = 0;
     if (arc) camDist = arc.camDist;

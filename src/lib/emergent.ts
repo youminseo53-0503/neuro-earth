@@ -385,6 +385,14 @@ export class EmergentNetwork {
     }
   }
 
+  /** 모든 노선(항공 아크) 시냅스를 한 번에 끊는다 — 전쟁 직전 '하늘길 정지'용. traumaArc 디렉터만 호출. */
+  clearRoutes() {
+    for (let s = 0; s < this.syns.length; s++) {
+      const e = this.syns[s];
+      if (e.alive && e.route) this.killSyn(s);
+    }
+  }
+
   /** 대격변 — 살아있는 노드를 무작위로 대량 몰살(생존 비율 keep, 예: 0.1=1할만 생존). 영속 앵커는 면제.
    *  killNode를 6천 번 부르면 노드마다 시냅스 전수스캔이라 프리즈 → 노드/시냅스를 각각 1-pass로 정리(O(N+S)).
    *  config.traumaArc 디렉터만 호출 → 다른 버전 동역학 불변(rng 스트림도 trauma에서만 소비). */

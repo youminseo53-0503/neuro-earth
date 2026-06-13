@@ -9,7 +9,6 @@ import { PandemicCaption } from "@/components/PandemicCaption";
 import { BriefingPanel } from "@/components/BriefingPanel";
 import { ExhibitionController } from "@/components/ExhibitionController";
 import { IdleController } from "@/components/IdleController";
-import { ClearButton } from "@/components/ClearButton";
 import { FlashOverlay } from "@/components/FlashOverlay";
 import { MobileFeedSheet } from "@/components/MobileFeedSheet";
 import { useViz } from "@/store/useViz";
@@ -46,7 +45,6 @@ export default function Home() {
         <PandemicCaption />
         <BriefingPanel />
         <ScenarioBar />
-        <ClearButton />
       </section>
 
       {/* 오른쪽 — 프롬프트 피드(데스크탑 전용). 비우기(idle) 시 폭이 0으로 접히며 슬라이드 아웃 →
