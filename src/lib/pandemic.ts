@@ -81,7 +81,7 @@ export class PandemicDirector {
   private PEAK = 300;       // 싹 빨개진 채 지구 켜고 ~5초 holding(상황 이해)
   private LOCK = 240;       // 대봉쇄 저점 유지(~4초)
   private REC = 3000;       // 회복 램프(2020.5→2021.6) — 아주 더디게(틱 ≈ 프레임, ~50초)
-  private MONTH_TICKS = 36; // present에서 한 달이 흐르는 틱(2021.6→오늘까지 시간 가속)
+  private MONTH_TICKS = 12; // present에서 한 달이 흐르는 틱(2021.6→오늘까지 가속 — 길게 끌지 않게)
   private HOLD = 180;       // '오늘'에 닿아 잠시 머무는 시간(~3초) 후 실시간으로 전환
 
   reset() {

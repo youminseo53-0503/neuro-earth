@@ -10,6 +10,7 @@ import { BriefingPanel } from "@/components/BriefingPanel";
 import { ExhibitionController } from "@/components/ExhibitionController";
 import { IdleController } from "@/components/IdleController";
 import { FlashOverlay } from "@/components/FlashOverlay";
+import { ExhibitionNarration } from "@/components/ExhibitionNarration";
 import { MobileFeedSheet } from "@/components/MobileFeedSheet";
 import { useViz } from "@/store/useViz";
 import { useIdle } from "@/store/useIdle";
@@ -64,6 +65,9 @@ export default function Home() {
 
       {/* 외상 충격 섬광(전역 최상단) */}
       <FlashOverlay />
+
+      {/* 전시(자동) 나레이션 — 자동순환일 때 시나리오 설명을 신경망 옆에 */}
+      <ExhibitionNarration />
     </main>
   );
 }
