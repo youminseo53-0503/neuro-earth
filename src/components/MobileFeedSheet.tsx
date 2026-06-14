@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { timeline } from "@/data/timeline";
 import { BRIEFINGS, type Briefing } from "@/lib/briefings";
 import { isPandemicView } from "@/lib/versions";
@@ -39,17 +39,6 @@ export function MobileFeedSheet() {
   const idle = useIdle((s) => s.idle);
   const touchY = useRef<number | null>(null);
   const swiped = useRef(false); // 스와이프로 스냅했으면 브라우저가 합성하는 click 무시(이중 전환 방지)
-
-  // 첫 방문 — 3초 뒤 half 1회 자동 오픈(다음부턴 안 함)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (localStorage.getItem("ne-sheet-seen")) return;
-    const t = setTimeout(() => {
-      open("feed", "half");
-      localStorage.setItem("ne-sheet-seen", "1");
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [open]);
 
   const last = timeline[timeline.length - 1];
   const preview = last ? `#${String(last.n).padStart(2, "0")} ${last.text.slice(0, 42)}…` : "";

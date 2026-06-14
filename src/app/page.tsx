@@ -6,7 +6,6 @@ import { HUD } from "@/components/HUD";
 import { VersionRemote } from "@/components/VersionRemote";
 import { ScenarioBar } from "@/components/ScenarioBar";
 import { PandemicCaption } from "@/components/PandemicCaption";
-import { BriefingPanel } from "@/components/BriefingPanel";
 import { ExhibitionController } from "@/components/ExhibitionController";
 import { IdleController } from "@/components/IdleController";
 import { FlashOverlay } from "@/components/FlashOverlay";
@@ -44,7 +43,6 @@ export default function Home() {
         <HUD />
         <VersionRemote />
         <PandemicCaption />
-        <BriefingPanel />
         <ScenarioBar />
       </section>
 

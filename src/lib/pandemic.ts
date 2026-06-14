@@ -70,6 +70,7 @@ export class PandemicDirector {
   phase: PandemicPhase = "growing";
   private t0 = 0;
   private started = false;
+  private presentInit = false;
 
   // 튜닝(틱 ≈ 프레임, ~60fps)
   private ACTIVE_N = 480;   // 이만큼 빠르게 차오르면 분주한 세계
@@ -87,6 +88,7 @@ export class PandemicDirector {
   reset() {
     this.phase = "growing";
     this.started = false;
+    this.presentInit = false;
     this.t0 = 0;
   }
 
@@ -234,8 +236,20 @@ export class PandemicDirector {
         // 엔데믹 이후 — 지구를 다시 켜고(클라이맥스 해제) 일상으로. 날짜가 오늘까지 흐른다.
         // 오늘에 닿으면 ~3초 머문 뒤 done=true → EmergentLayer가 실시간(라이브) 모드로 자연 전환.
         climax = false;
+        // 엔데믹 이후 — 노드 턴오버 재개(생멸 churn). 팬데믹 내내 mortal off라 망이 '멈춰' 보였던 진짜 원인.
+        // 옛 노드들의 나이를 분산시켜 한꺼번에 안 죽고 차츰 생멸하게 → 실시간처럼 살아 움직임.
+        if (!this.presentInit) {
+          this.presentInit = true;
+          net.cfg.maxAge = 1200;
+          for (let i = 0; i < nodes.length; i++) {
+            const n = nodes[i];
+            if (n.alive && !n.immortal) {
+              n.maxAge = 1200 * (0.6 + Math.random() * 0.8);
+              n.born = tick - Math.floor(n.maxAge * Math.random()); // 사망 시점 분산
+            }
+          }
+        }
         // 엔데믹 — 간헐적 소규모 발병(생기고 잡히고). 막 확산은 안 됨(약한 전염률+빠른 회복+감염 적을 때만 씨앗).
-        // 망이 멈춰 보이던 것도 이 작은 발병들의 움직임으로 살아난다.
         net.cfg.pandemic = true;
         net.cfg.infectRate = 0.006;
         net.cfg.recoverTicks = 80;
