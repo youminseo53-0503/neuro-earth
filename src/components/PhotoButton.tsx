@@ -1,20 +1,20 @@
 "use client";
 
 import { useIdle } from "@/store/useIdle";
+import { useSheet } from "@/store/useSheet";
 
 /**
  * 사진찍기 모드 버튼 — 오른쪽 아래(사진에 방해 안 되게 작고 은은하게).
  *   누르면 모든 오버레이를 치우고(idle), 화면을 만져도 크롬이 다시 안 뜨게 잠근다(photo sticky).
  *   → 이 버튼 자체의 터치는 stopPropagation으로 '화면 터치'에서 제외 → 눌러도 개발로그 안 뜸.
- *   immersive(idle)거나 사진 모드일 때만 보인다(수동 탐색 중엔 숨겨 오른쪽 피드와 안 겹침).
+ *   '항상' 떠 있고 z도 제일 위라, 살짝 움직여 개발로그(피드)가 떠도 그 위에서 그대로 눌린다.
+ *   (모바일 바텀시트를 직접 끌어올렸을 때만 가린다 → 그땐 숨김.)
  */
 export function PhotoButton() {
-  const idle = useIdle((s) => s.idle);
   const photo = useIdle((s) => s.photo);
   const setPhoto = useIdle((s) => s.setPhoto);
   const setIdle = useIdle((s) => s.setIdle);
-
-  if (!idle && !photo) return null; // 수동 탐색 중엔 숨김
+  const sheetStage = useSheet((s) => s.stage); // 모바일 시트 열려 있으면(=peek 아님) 숨김
 
   const toggle = () => {
     if (!photo) {
@@ -35,9 +35,9 @@ export function PhotoButton() {
       onMouseDown={stop}
       title={photo ? "사진찍기 모드 끄기" : "사진찍기 모드 — 다 치우기"}
       aria-label={photo ? "사진찍기 모드 끄기" : "사진찍기 모드"}
-      className={`pointer-events-auto fixed bottom-4 right-4 z-40 grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-sm transition-opacity ${
-        photo ? "opacity-25 hover:opacity-90" : "opacity-55 hover:opacity-100"
-      }`}
+      className={`pointer-events-auto fixed bottom-4 right-4 z-50 grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/45 text-white backdrop-blur-sm transition-opacity ${
+        photo ? "opacity-25 hover:opacity-90" : "opacity-60 hover:opacity-100"
+      } ${sheetStage !== "peek" ? "max-lg:hidden" : ""}`}
     >
       {photo ? (
         // 사진 모드 ON — 끄기(되돌리기) 아이콘
