@@ -89,6 +89,8 @@ function drawNodes(
   NODE_LV: number[],
   color: THREE.Color,
   dummy: THREE.Object3D,
+  genesisPal: boolean, // 창세 — 찬란한 황금 팔레트
+  mourn: boolean,      // 전쟁 피해 이후 — 살아남은 점들을 보라로 고정
 ) {
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i];
@@ -100,12 +102,22 @@ function drawNodes(
       continue;
     }
     const act = Math.min(1, Math.max(n.a * 0.7, n.flash));
-    if (config.pandemic) {
+    if (mourn) {
+      // 전쟁 피해 이후 — 보라 고정(활동과 무관하게 또렷)
+      const p = 0.55 + act * 0.45;
+      color.setRGB(0.52 * p, 0.16 * p, 0.92 * p);
+    } else if (config.pandemic) {
       // SIR — 감염(빨강) / 회복(파랑) / 취약은 평소 뇌 색 그대로(활발한 세계 위로 빨강이 번짐)
       if (n.inf === 1) color.setRGB(1.0, 0.13, 0.1);
       else if (n.inf === 2) color.setRGB(0.16, 0.45, 0.95);
       else if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
       else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
+    } else if (genesisPal) {
+      // 창세 — 찬란한 황금(흥분=밝은 금 / 억제=깊은 호박·청동)
+      if (n.type === 1) color.setRGB(0.6 + act * 0.4, 0.42 + act * 0.43, 0.08 + act * 0.16);
+      else color.setRGB(0.45 + act * 0.3, 0.24 + act * 0.2, 0.04 + act * 0.08);
+      if (n.mod > 0.08) color.lerp(GOLD, Math.min(0.9, n.mod * 0.2));
+      if (n.immortal) color.setRGB(1.0, 0.93, 0.62); // 앵커 — 더 밝은 금
     } else {
       if (n.type === 1) color.setRGB(0.05 + act * 0.3, 0.5 + act * 0.5, 0.6 + act * 0.4);
       else color.setRGB(0.6 + act * 0.4, 0.1 + act * 0.3, 0.45 + act * 0.4);
@@ -143,7 +155,8 @@ function drawSynapses(
   dummy: THREE.Object3D,
   dir: THREE.Vector3,
   sever: number,
-  mourn: boolean, // 전쟁 직후 정적 — 살아남은 선을 보라색으로(활동과 무관하게 또렷)
+  mourn: boolean, // 전쟁 피해 이후 — 살아남은 선을 보라색으로(활동과 무관하게 또렷)
+  genesisPal: boolean, // 창세 — 황금 선
 ) {
   let c = 0;
   for (let s = 0; s < syns.length && c < SYN_CAP; s++) {
@@ -174,6 +187,10 @@ function drawSynapses(
       // 보라색 — 활동(act)이 얼어 사그라들어도 또렷하게(가중치로만 약간 변주)
       const p = 0.4 + 0.6 * Math.min(1, e.w);
       color.setRGB(0.5 * p, 0.14 * p, 0.85 * p);
+    } else if (genesisPal) {
+      // 창세 황금 선
+      const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35) * alpha;
+      color.setRGB(0.85 * t, 0.62 * t, 0.16 * t);
     } else {
       const t = Math.min(1, e.act * (0.4 + 0.5 * e.w) + Math.max(0, e.w - 0.3) * 0.35) * alpha;
       if (e.sign > 0) color.setRGB(0.12 * t, 0.85 * t, 0.65 * t);
@@ -204,7 +221,8 @@ function drawRoutes(
   config: VizConfig,
   earthShown: boolean,
   pandemicHalt: number | null, // null=평소(청록) / 0..1=팬데믹(감염 노선 빨강, 봉쇄 시 0으로 페이드)
-  mourn: boolean, // 전쟁 직후 정적 — 살아남은 노선을 보라색으로
+  mourn: boolean, // 전쟁 피해 이후 — 살아남은 노선을 보라색으로
+  genesisPal: boolean, // 창세 — 황금 노선
 ) {
   let rc = 0;
   const maxSeg = ROUTE_CAP * (ARC_SEG - 1);
@@ -235,6 +253,8 @@ function drawRoutes(
     if (mourn) {
       const p = 0.45 + 0.55 * flow; // 보라(살아남은 노선)
       r = 0.5 * p; g = 0.14 * p; bl = 0.85 * p;
+    } else if (genesisPal) {
+      r = 0.85 * flow; g = 0.62 * flow; bl = 0.16 * flow; // 창세 황금 노선
     } else if (pandemicHalt !== null) {
       // 팬데믹 — 감염된 끝점이 있으면 항공로가 빨갛게(바이러스가 노선을 탐). 봉쇄 시 halt→0로 페이드(비행 멎음).
       const a2 = nodes[e.i], b2 = nodes[e.j];
@@ -447,10 +467,11 @@ export function EmergentLayer() {
     const phalt = config.pandemic ? (arc ? arc.halt : 1) : null;
     // 팬데믹 단절 — pandemicSever 버전(v31)에서만. 옛 팬데믹(v26)은 sever=0이라 기존과 동일.
     const sever = config.pandemicSever && arc ? arc.severance : 0;
-    const mourn = !!(trauma && trauma.mourn); // 전쟁 직후 정적 — 보라색
-    drawNodes(mesh, net.nodes, config, NODE_LV, color, dummy);
-    drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir, sever, mourn);
-    drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt, mourn);
+    const mourn = !!(trauma && trauma.mourn); // 전쟁 피해 이후 — 보라 고정(노드·선)
+    const genesisPal = config.sources.some((s) => GENESIS_SOURCES.includes(s)); // 창세 — 황금
+    drawNodes(mesh, net.nodes, config, NODE_LV, color, dummy, genesisPal, mourn);
+    drawSynapses(sm, net.syns, net.nodes, prevSyn, color, dummy, dir, sever, mourn, genesisPal);
+    drawRoutes(net.syns, net.nodes, routeGeom, rPos, rCol, config, earthShown, phalt, mourn, genesisPal);
 
     // 클라이맥스/카메라 연출은 자동재생 버전(v27+, exhibit)부터 — 옛 버전 화면은 안 건드림.
     // 팬데믹(v26)은 자체 시네마틱(pandemicArc)이라 exhibit 무관하게 그대로.

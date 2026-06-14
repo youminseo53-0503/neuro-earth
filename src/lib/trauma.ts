@@ -130,6 +130,7 @@ export class TraumaDirector {
         // 정적이 풀리고 — 지구는 투명한 채(신경계 느낌), 남은 1할에서 망이 '천천히' 다시 자란다.
         const p = local / this.REWIRE;
         earthOff = true; // 재건 내내 지구 투명 유지 — 망만 우주에 떠 자라남
+        mourn = true;    // 피해 이후 — 재건되는 망도 보라로(전쟁의 색 정체성 유지)
         nodeScale = lerp(0.2, 1, Math.min(1, p * 1.5));   // 자극 서서히 — 재건을 더디게
         routeScale = lerp(0, 0.8, Math.min(1, p * 1.3));  // 하늘길도 서서히 다시 열림
         camDist = lerp(5.8, 6.6, p); // 천천히 물러나며 재건을 관조
