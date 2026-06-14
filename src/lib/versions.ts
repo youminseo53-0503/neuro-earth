@@ -449,6 +449,7 @@ export const VERSIONS: VizVersion[] = [
       }),
       pandemic: { ...PANDEMIC_BASE, pandemicArc: true, pandemicSever: true, exhibit: true },
       // 외상 — 호르몬은 켠다(끄면 4천에서 자연 평형에 갇혀 7천을 못 감). 대신 성장률만 낮춰 속도 조절.
+      // 스타링크(gridWave)는 실시간 전용 → 전쟁에선 끔.
       trauma: live({
         mortal: true,
         lifespan: 1600,
@@ -457,6 +458,7 @@ export const VERSIONS: VizVersion[] = [
         exhibit: true,
         traumaArc: true,
         growthProb: 0.09,
+        gridWave: false,
       }),
     },
   },

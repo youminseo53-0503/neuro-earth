@@ -170,7 +170,7 @@ export function MobileFeedSheet() {
                   <span className="mt-px shrink-0">🧠</span>
                   <span className="italic">{b.brain}</span>
                 </div>
-                <p className="text-[13px] leading-relaxed text-white/70">{b.body}</p>
+                <p className="whitespace-pre-line text-[13px] leading-relaxed text-white/70">{b.body}</p>
               </div>
             )}
           </div>
