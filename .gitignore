@@ -43,3 +43,6 @@ next-env.d.ts
 # 로컬 작업 규칙(저장소 비공개 운영 파일)
 CLAUDE.md
 AGENTS.md
+
+# 제출용 보고서 — 저장소 추적 제외(로컬에만 보존)
+탐구보고서_NEURO-EARTH.md
