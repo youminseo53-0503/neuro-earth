@@ -234,6 +234,22 @@ export class PandemicDirector {
         // 엔데믹 이후 — 지구를 다시 켜고(클라이맥스 해제) 일상으로. 날짜가 오늘까지 흐른다.
         // 오늘에 닿으면 ~3초 머문 뒤 done=true → EmergentLayer가 실시간(라이브) 모드로 자연 전환.
         climax = false;
+        // 엔데믹 — 간헐적 소규모 발병(생기고 잡히고). 막 확산은 안 됨(약한 전염률+빠른 회복+감염 적을 때만 씨앗).
+        // 망이 멈춰 보이던 것도 이 작은 발병들의 움직임으로 살아난다.
+        net.cfg.pandemic = true;
+        net.cfg.infectRate = 0.006;
+        net.cfg.recoverTicks = 80;
+        net.suppressReseed = true; // 자동 재유행 끔 — 디렉터가 가끔 아주 소수만 심는다
+        if (local % 130 === 0 && inf < 22) {
+          for (let tries = 0; tries < 24; tries++) {
+            const r = Math.floor(Math.random() * nodes.length);
+            if (nodes[r].alive && nodes[r].inf === 0) {
+              nodes[r].inf = 1;
+              nodes[r].infT = 0;
+              break;
+            }
+          }
+        }
         const tgt = todayMonth();
         const dur = Math.max(1, (tgt - M(2021, 6)) * this.MONTH_TICKS);
         const p = Math.min(1, local / dur);
