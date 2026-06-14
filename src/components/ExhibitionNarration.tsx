@@ -6,9 +6,9 @@ import { usePandemic } from "@/store/usePandemic";
 
 /**
  * 전시(자동) 나레이션 — 관조 비트에서만 뜬다(카메라가 빠져 지구가 작아진 상태).
- *   작아진 지구 '아래' 하단 밴드. 글 배치는 잡지 기사처럼: 키커 → 제목 → 데크(뇌과학) → 구분선 →
- *   본문(좌측 정렬·넉넉한 행간·문단 분리)로 가독성을 잡았다.
- *   수동 모드에선 컨트롤러가 narrKey를 비워 안 뜬다(그땐 브리핑 패널로 직접 펼쳐 읽기).
+ *   지구 신경망은 무조건 중앙이라, 나레이션은 '작아진 지구 아래' 낮고 컴팩트한 하단 띠로만 둔다.
+ *   긴 본문(브리핑)은 모바일 시트/보고서에서 읽고, 여기선 핵심 한두 문장(b.short)만 — 절대 지구를 가리지 않게.
+ *   수동 모드에선 컨트롤러가 narrKey를 비워 안 뜬다.
  */
 export function ExhibitionNarration() {
   const narrKey = useStage((s) => s.narrKey);
@@ -18,38 +18,37 @@ export function ExhibitionNarration() {
 
   return (
     <div
-      className={`pointer-events-none fixed bottom-[5dvh] left-1/2 z-30 w-[min(92vw,660px)] -translate-x-1/2 transition-opacity duration-[1200ms] ${
+      className={`pointer-events-none fixed inset-x-0 bottom-[4dvh] z-30 flex justify-center px-3 transition-opacity duration-[1100ms] ${
         narrKey ? "opacity-100" : "opacity-0"
       }`}
     >
       {b && (
-        <div className="rounded-2xl border border-panel-border bg-black/60 px-7 py-5 backdrop-blur-md">
+        <div className="w-[min(94vw,600px)] rounded-2xl border border-panel-border bg-black/55 px-5 py-3 text-center backdrop-blur-md">
           {narrKey === "pandemic" && dateLabel && (
             <div
-              className="mb-3 text-center font-mono text-[clamp(22px,2.4vw,34px)] font-bold tracking-[0.18em] text-white/92"
-              style={{ textShadow: "0 2px 18px rgba(255,70,70,0.45)" }}
+              className="mb-1.5 font-mono text-[clamp(16px,2vw,24px)] font-bold tracking-[0.16em] text-white/92"
+              style={{ textShadow: "0 2px 16px rgba(255,70,70,0.45)" }}
             >
               {dateLabel}
             </div>
           )}
-          {/* 키커 */}
-          <div
-            className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.3em] ${
-              live ? "text-neon-green/80" : "text-amber-300/80"
-            }`}
-          >
-            {live ? "Live · 실시간" : "Scenario · 시나리오"}
+          {/* 키커 + 제목 한 줄 */}
+          <div className="flex items-center justify-center gap-2">
+            <span
+              className={`shrink-0 text-[9px] font-semibold uppercase tracking-[0.28em] ${
+                live ? "text-neon-green/80" : "text-amber-300/80"
+              }`}
+            >
+              {live ? "Live" : "Scene"}
+            </span>
+            <h2 className="text-[clamp(15px,1.8vw,20px)] font-bold leading-tight tracking-tight text-white">
+              {b.title}
+            </h2>
           </div>
-          {/* 제목 */}
-          <h2 className="text-balance text-[clamp(19px,2.2vw,27px)] font-bold leading-tight tracking-tight text-white">
-            {b.title}
-          </h2>
-          {/* 데크(본뜬 뇌과학) */}
-          <p className="mt-1 text-[12.5px] italic leading-snug text-neon-cyan/80">{b.brain}</p>
-          {/* 구분선 */}
-          <div className="my-3 h-px w-16 bg-white/25" />
-          {/* 본문 — 좌측 정렬·넉넉한 행간·문단 분리 */}
-          <p className="whitespace-pre-line text-pretty text-[13.5px] leading-[1.85] text-white/80">{b.body}</p>
+          {/* 핵심 한두 문장 */}
+          <p className="mt-1 text-pretty text-[clamp(12px,1.4vw,14px)] leading-snug text-white/78">
+            {b.short}
+          </p>
         </div>
       )}
     </div>
