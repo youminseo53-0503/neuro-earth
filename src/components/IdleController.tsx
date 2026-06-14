@@ -29,6 +29,7 @@ export function IdleController() {
       timer.current = setTimeout(toAuto, IDLE_MS);
     };
     const interact = () => {
+      if (useIdle.getState().photo) return; // 사진찍기 모드: 화면 만져도 크롬 안 띄움(개발로그 안 뜸)
       setIdle(false); // 크롬 등장
       setAuto(false); // 수동(자동 멈춤)
       arm();
@@ -41,6 +42,18 @@ export function IdleController() {
       }
     };
 
+    // 사진찍기 모드 토글 반응 — 켜지면 자동복귀 타이머 정지(계속 깨끗하게), 꺼지면 다시 10초 뒤 immersive
+    let prevPhoto = useIdle.getState().photo;
+    const unsubPhoto = useIdle.subscribe((s) => {
+      if (s.photo === prevPhoto) return;
+      prevPhoto = s.photo;
+      if (s.photo) {
+        if (timer.current) clearTimeout(timer.current);
+      } else {
+        arm();
+      }
+    });
+
     window.addEventListener("pointerdown", interact, { passive: true });
     window.addEventListener("touchstart", interact, { passive: true });
     window.addEventListener("keydown", interact);
@@ -50,6 +63,7 @@ export function IdleController() {
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      unsubPhoto();
       window.removeEventListener("pointerdown", interact);
       window.removeEventListener("touchstart", interact);
       window.removeEventListener("keydown", interact);

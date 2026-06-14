@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useIdle } from "@/store/useIdle";
 
 /**
  * 좌측 하단 QR — 찍으면 작품 도록(/guide·진짜 잡지)으로. 전시 관람객 유도.
@@ -10,10 +11,11 @@ import { QRCodeSVG } from "qrcode.react";
  */
 export function GuideQR() {
   const [url, setUrl] = useState("");
+  const photo = useIdle((s) => s.photo);
   useEffect(() => {
     setUrl(window.location.origin + "/guide");
   }, []);
-  if (!url) return null;
+  if (!url || photo) return null; // 사진찍기 모드면 QR도 치움
 
   return (
     <a

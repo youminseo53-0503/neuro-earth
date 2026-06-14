@@ -11,6 +11,7 @@ import { IdleController } from "@/components/IdleController";
 import { FlashOverlay } from "@/components/FlashOverlay";
 import { ExhibitionNarration } from "@/components/ExhibitionNarration";
 import { GuideQR } from "@/components/GuideQR";
+import { PhotoButton } from "@/components/PhotoButton";
 import { MobileFeedSheet } from "@/components/MobileFeedSheet";
 import { useViz } from "@/store/useViz";
 import { useIdle } from "@/store/useIdle";
@@ -47,6 +48,8 @@ export default function Home() {
         <ScenarioBar />
         {/* 좌측 하단 QR — 찍으면 작품 도록(/guide·잡지)으로 */}
         <GuideQR />
+        {/* 우측 하단 사진찍기 모드 — 다 치우고, 만져도 크롬 안 뜨게 잠금 */}
+        <PhotoButton />
       </section>
 
       {/* 오른쪽 — 프롬프트 피드(데스크탑 전용). 비우기(idle) 시 폭이 0으로 접히며 슬라이드 아웃 →

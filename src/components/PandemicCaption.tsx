@@ -2,6 +2,7 @@
 
 import { usePandemic } from "@/store/usePandemic";
 import { useStage } from "@/store/useStage";
+import { useIdle } from "@/store/useIdle";
 
 /**
  * 팬데믹 '멸종' 시네마틱의 화면 하단 자막(다큐멘터리 로어서드).
@@ -11,7 +12,8 @@ import { useStage } from "@/store/useStage";
 export function PandemicCaption() {
   const { active, dateLabel, caption, infectedPct, phase, bar } = usePandemic();
   const narr = useStage((s) => s.narrKey);
-  if (!active || narr) return null; // 관조 나레이션이 뜨면 날짜 자막은 비켜준다(겹침 방지)
+  const photo = useIdle((s) => s.photo);
+  if (!active || narr || photo) return null; // 나레이션이 뜨거나(겹침 방지) 사진찍기 모드면 자막 치움
 
   const pct = Math.round(infectedPct * 100);
   const frozen = phase === "peak" || phase === "lockdown" || phase === "recovery";
