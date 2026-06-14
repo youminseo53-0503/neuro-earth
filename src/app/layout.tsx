@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Nanum_Myeongjo } from "next/font/google";
 import "./globals.css";
 
 /** 모바일 뷰포트 — 풀스크린 캔버스 앱. 노치까지 덮고(cover), 더블탭 줌 방지(궤도 드래그와 충돌). */
@@ -23,6 +23,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// 작품 도록(/guide) 전용 명조 — 모던·신비로운 잡지 헤드라인용. 변수만 노출(메인 화면엔 영향 없음).
+const serifKr = Nanum_Myeongjo({
+  variable: "--font-serif-kr",
+  weight: ["400", "700", "800"],
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "NEURO·EARTH — 살아있는 인공뇌",
   description:
@@ -37,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${serifKr.variable} h-full antialiased`}
     >
       <body className="min-h-full">{children}</body>
     </html>

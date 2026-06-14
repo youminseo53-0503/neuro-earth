@@ -19,6 +19,7 @@
   --color-neon-green: var(--neon-green);
   --color-minseo: var(--minseo);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-serif-kr), Georgia, "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
 }
 
 html,

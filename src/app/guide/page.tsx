@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BRIEFINGS } from "@/lib/briefings";
-import { ScenarioKeyVisual, type KeyPalette } from "@/components/ScenarioKeyVisual";
+import { ScenarioKeyVisual } from "@/components/ScenarioKeyVisual";
 
 export const metadata: Metadata = {
   title: "작품 도록 — NEURO·EARTH",
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
 
 // ─────────────────────────────────────────────────────────────
 // /guide — QR로 들어오는 '진짜 잡지' 작품 도록(팜플렛).
-//   전시장 라이브 화면(/)과 별개의 정적 디지털 도록: 작품마다 키비주얼 + 해설.
+//   톤: 흰 지면(off-white) + 검은 잉크 + 명조 헤드라인 + 큰 여백, 흑백 신경망 플레이트.
+//        모던하면서 신비로운 갤러리 도록. 전시장 라이브 화면(/)과는 별개의 정적 도록.
 //   콘텐츠는 briefings.ts(작품 해설)를 그대로 쓴다 — 화면과 도록이 한 소스.
 //   서버 컴포넌트(정적) — 인터랙션 없음, 폰에서 가볍게 스크롤.
 // ─────────────────────────────────────────────────────────────
@@ -20,117 +21,81 @@ interface Work {
   key: keyof typeof BRIEFINGS;
   no: string;
   kicker: string;
-  pal: KeyPalette;
-  accent: string; // 제목/번호 강조색 클래스
+  seed: number;
   soon?: boolean;
 }
 
 const WORKS: Work[] = [
-  {
-    key: "live",
-    no: "01",
-    kicker: "LIVE · 실시간",
-    accent: "text-neon-green",
-    pal: { from: "#06151a", to: "#001f1a", dot: "#00ff9c", seed: 0.4 },
-  },
-  {
-    key: "genesis",
-    no: "02",
-    kicker: "SCENE · 창세",
-    accent: "text-[#ffd866]",
-    pal: { from: "#1b1305", to: "#2a1d02", dot: "#ffd866", seed: 1.7 },
-  },
-  {
-    key: "pandemic",
-    no: "03",
-    kicker: "SCENE · 팬데믹",
-    accent: "text-[#ff6b6b]",
-    pal: { from: "#1c0707", to: "#2c0404", dot: "#ff5a5a", seed: 2.9 },
-  },
-  {
-    key: "trauma",
-    no: "04",
-    kicker: "SCENE · 전쟁",
-    accent: "text-[#c084fc]",
-    pal: { from: "#140618", to: "#220734", dot: "#c084fc", seed: 4.2 },
-  },
-  {
-    key: "recovery",
-    no: "05",
-    kicker: "SCENE · 회복",
-    accent: "text-slate-300",
-    soon: true,
-    pal: { from: "#0a1018", to: "#0f1826", dot: "#94a3b8", seed: 5.6 },
-  },
+  { key: "live", no: "I", kicker: "Live · 실시간", seed: 0.4 },
+  { key: "genesis", no: "II", kicker: "Scene · 창세", seed: 1.7 },
+  { key: "pandemic", no: "III", kicker: "Scene · 팬데믹", seed: 2.9 },
+  { key: "trauma", no: "IV", kicker: "Scene · 전쟁", seed: 4.2 },
+  { key: "recovery", no: "V", kicker: "Scene · 회복", seed: 5.6, soon: true },
 ];
 
 export default function GuidePage() {
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground">
+    <div className="min-h-[100dvh] bg-[#f7f6f3] text-[#121212] selection:bg-black selection:text-white">
       {/* 상단 바 */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-panel-border bg-background/80 px-5 py-3 backdrop-blur-md">
-        <span className="font-mono text-[12px] tracking-[0.3em] text-white/70">NEURO·EARTH</span>
-        <Link
-          href="/"
-          className="rounded-full border border-panel-border px-3 py-1 text-[11px] text-white/60 transition hover:text-neon-cyan"
-        >
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/10 bg-[#f7f6f3]/85 px-5 py-3 backdrop-blur-md">
+        <span className="font-mono text-[11px] tracking-[0.35em] text-black/70">NEURO·EARTH</span>
+        <Link href="/" className="font-mono text-[10px] tracking-[0.25em] text-black/45 transition hover:text-black">
           전시 화면 →
         </Link>
       </header>
 
       {/* 표지 */}
-      <section className="relative mx-auto max-w-[860px] overflow-hidden">
-        <div className="relative h-[64vh] min-h-[420px] w-full">
-          <ScenarioKeyVisual pal={{ from: "#0a1430", to: "#04060f", dot: "#00e5ff", seed: 3.3 }} idKey="cover" />
-          <div className="absolute inset-0 flex flex-col items-center justify-end pb-12 text-center">
-            <p className="mb-3 font-mono text-[11px] tracking-[0.45em] text-neon-cyan/80">EXHIBITION CATALOG · 작품 도록</p>
-            <h1 className="px-4 font-serif text-[clamp(40px,11vw,84px)] font-bold leading-[0.95] tracking-tight text-white">
-              살아있는<br />인공뇌
-            </h1>
-            <p className="mt-4 max-w-[34ch] text-balance px-6 text-[13px] leading-relaxed text-white/65">
-              지구 스케일의 신경가소성 — 실제 지구 데이터가 자극하면 스스로 배선되는 뇌.
-              네 개의 장면과, 그 너머의 회복.
-            </p>
-            <p className="mt-5 font-mono text-[11px] tracking-[0.3em] text-white/45">by 민서</p>
-          </div>
+      <section className="mx-auto flex min-h-[86vh] max-w-[880px] flex-col items-center justify-center px-6 py-20 text-center">
+        {/* 흑백 신경망 엠블럼 */}
+        <div className="relative mb-12 h-40 w-40 overflow-hidden rounded-full ring-1 ring-black/10 sm:h-52 sm:w-52">
+          <ScenarioKeyVisual seed={3.3} idKey="cover" />
         </div>
+        <p className="mb-7 font-mono text-[10px] tracking-[0.5em] text-black/45">EXHIBITION CATALOG</p>
+        <h1 className="font-serif text-[clamp(46px,13vw,104px)] font-extrabold leading-[0.95] tracking-[-0.01em]">
+          살아있는<br />인공뇌
+        </h1>
+        <p className="mt-8 max-w-[36ch] text-balance text-[13.5px] leading-[1.8] text-black/55">
+          지구 스케일의 신경가소성. 실제 지구 데이터가 자극하면 스스로 배선되는 뇌 —
+          네 개의 장면과, 그 너머의 회복.
+        </p>
+        <div className="mt-12 h-px w-12 bg-black/25" />
+        <p className="mt-6 font-mono text-[10px] tracking-[0.35em] text-black/45">BY 민서</p>
       </section>
 
       {/* 작품들 */}
-      <main className="mx-auto max-w-[860px]">
+      <main className="mx-auto max-w-[880px] px-5 sm:px-8">
         {WORKS.map((w) => {
           const b = BRIEFINGS[w.key];
           const paras = b.body.split("\n\n");
           return (
-            <article key={w.key} className="border-t border-panel-border">
-              {/* 키비주얼 + 표제 */}
-              <div className="relative h-[52vh] min-h-[340px] w-full overflow-hidden">
-                <ScenarioKeyVisual pal={w.pal} idKey={w.key} />
-                <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10">
-                  <div className={`mb-2 flex items-baseline gap-3 ${w.accent}`}>
-                    <span className="font-serif text-[clamp(34px,8vw,60px)] font-bold leading-none opacity-80">{w.no}</span>
-                    <span className="font-mono text-[11px] tracking-[0.3em]">{w.kicker}</span>
-                  </div>
-                  <h2 className="font-serif text-[clamp(30px,7vw,56px)] font-bold leading-[1.02] tracking-tight text-white">
-                    {b.title}
-                    {w.soon && <span className="ml-3 align-middle text-[12px] font-normal tracking-wide text-white/40">준비 중</span>}
-                  </h2>
-                </div>
+            <article key={w.key} className="border-t border-black/10 py-16 sm:py-24">
+              {/* 표제 */}
+              <div className="mb-8 flex items-baseline gap-4">
+                <span className="font-serif text-[clamp(26px,6vw,46px)] font-bold leading-none text-black/20">{w.no}</span>
+                <span className="font-mono text-[10px] tracking-[0.35em] text-black/50">{w.kicker.toUpperCase()}</span>
               </div>
+              <h2 className="mb-7 font-serif text-[clamp(32px,7.5vw,64px)] font-bold leading-[1.0] tracking-[-0.01em]">
+                {b.title}
+                {w.soon && <span className="ml-3 align-middle font-sans text-[12px] font-normal tracking-wide text-black/35">준비 중</span>}
+              </h2>
+
+              {/* 흑백 신경망 플레이트(흰 지면에 검은 도판) */}
+              <figure className="relative aspect-[16/10] w-full overflow-hidden bg-black ring-1 ring-black/10">
+                <ScenarioKeyVisual seed={w.seed} idKey={w.key} />
+              </figure>
 
               {/* 해설 */}
-              <div className="mx-auto max-w-[660px] px-6 py-10 sm:py-14">
-                <p className={`mb-7 flex items-start gap-2 text-[13.5px] italic leading-relaxed ${w.accent}`}>
-                  <span className="mt-px shrink-0 not-italic opacity-70">🧠</span>
+              <div className="mx-auto mt-10 max-w-[620px]">
+                <p className="mb-8 flex items-start gap-2 border-l-2 border-black/15 pl-4 font-serif text-[14px] italic leading-relaxed text-black/55">
                   <span>{b.brain}</span>
                 </p>
-                <div className="space-y-5 text-[15px] leading-[1.95] text-white/82">
+                <div className="space-y-5 text-[15px] leading-[1.95] text-black/85 sm:text-[16px]">
                   {paras.map((p, i) => (
                     <p
                       key={i}
                       className={
                         i === 0
-                          ? "first-letter:float-left first-letter:mr-2.5 first-letter:font-serif first-letter:text-[56px] first-letter:font-bold first-letter:leading-[0.78] first-letter:text-white"
+                          ? "first-letter:float-left first-letter:mr-2.5 first-letter:font-serif first-letter:text-[60px] first-letter:font-bold first-letter:leading-[0.72] first-letter:text-black"
                           : ""
                       }
                     >
@@ -145,20 +110,20 @@ export default function GuidePage() {
       </main>
 
       {/* 푸터 */}
-      <footer className="border-t border-panel-border px-6 py-12 text-center">
-        <p className="font-serif text-[22px] font-bold tracking-tight text-white/80">NEURO·EARTH</p>
-        <p className="mt-2 text-[12px] leading-relaxed text-white/45">
+      <footer className="border-t border-black/10 px-6 py-16 text-center">
+        <p className="font-serif text-[24px] font-bold tracking-tight text-black/80">NEURO·EARTH</p>
+        <p className="mt-3 text-[12px] leading-relaxed text-black/45">
           살아있는 인공뇌 — 지구 스케일 신경가소성
           <br />
           작년 NEURO-SIM의 가소성 모델을 지구 규모로 키운 연장선의 작품.
         </p>
         <Link
           href="/"
-          className="mt-6 inline-block rounded-full border border-panel-border px-5 py-2 text-[12px] text-white/65 transition hover:text-neon-cyan"
+          className="mt-7 inline-block border-b border-black/40 pb-0.5 font-mono text-[11px] tracking-[0.2em] text-black/70 transition hover:text-black"
         >
           살아있는 전시 화면으로 →
         </Link>
-        <p className="mt-8 font-mono text-[10px] tracking-[0.3em] text-white/30">by 민서</p>
+        <p className="mt-10 font-mono text-[10px] tracking-[0.35em] text-black/30">BY 민서</p>
       </footer>
     </div>
   );
