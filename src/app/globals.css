@@ -44,6 +44,7 @@ body {
   -webkit-touch-callout: none; /* iOS 롱프레스 콜아웃(복사·이미지저장 등) */
   -webkit-tap-highlight-color: transparent; /* 탭 시 회색 깜빡임 */
   overscroll-behavior: none; /* 당겨서 새로고침/고무줄 스크롤 */
+  touch-action: manipulation; /* 더블탭 줌 비활성(스크롤·필요한 제스처는 유지) */
 }
 img,
 a {

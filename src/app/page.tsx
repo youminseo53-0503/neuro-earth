@@ -10,6 +10,7 @@ import { ExhibitionController } from "@/components/ExhibitionController";
 import { IdleController } from "@/components/IdleController";
 import { FlashOverlay } from "@/components/FlashOverlay";
 import { ExhibitionNarration } from "@/components/ExhibitionNarration";
+import { GuideQR } from "@/components/GuideQR";
 import { MobileFeedSheet } from "@/components/MobileFeedSheet";
 import { useViz } from "@/store/useViz";
 import { useIdle } from "@/store/useIdle";
@@ -44,6 +45,8 @@ export default function Home() {
         <VersionRemote />
         <PandemicCaption />
         <ScenarioBar />
+        {/* 좌측 하단 QR — 작품 도록(메뉴얼)으로. 관람객 안내용 */}
+        <GuideQR />
       </section>
 
       {/* 오른쪽 — 프롬프트 피드(데스크탑 전용). 비우기(idle) 시 폭이 0으로 접히며 슬라이드 아웃 →
