@@ -35,6 +35,21 @@ body {
   overscroll-behavior: none;
 }
 
+/* 키오스크/전시 잠금 — 드래그·선택·롱프레스 메뉴·탭 하이라이트·당겨서새로고침 차단.
+   (우클릭/드래그시작/핀치 제스처는 KioskGuards가 JS로 추가 차단) */
+html,
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* iOS 롱프레스 콜아웃(복사·이미지저장 등) */
+  -webkit-tap-highlight-color: transparent; /* 탭 시 회색 깜빡임 */
+  overscroll-behavior: none; /* 당겨서 새로고침/고무줄 스크롤 */
+}
+img,
+a {
+  -webkit-user-drag: none;
+}
+
 /* 피드 스크롤바 (네온 톤) — 공간 미리 예약(스크롤바 등장으로 폭이 줄며 생기는 시프트 방지) */
 .feed-scroll {
   scrollbar-gutter: stable;

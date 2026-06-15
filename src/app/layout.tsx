@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Nanum_Myeongjo } from "next/font/google";
 import "./globals.css";
+import { KioskGuards } from "@/components/KioskGuards";
 
 /** 모바일 뷰포트 — 풀스크린 캔버스 앱. 노치까지 덮고(cover), 더블탭 줌 방지(궤도 드래그와 충돌). */
 export const viewport: Viewport = {
@@ -46,7 +47,10 @@ export default function RootLayout({
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} ${serifKr.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <KioskGuards />
+        {children}
+      </body>
     </html>
   );
 }
