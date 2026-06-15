@@ -23,13 +23,14 @@ interface Work {
   kicker: string;
   seed: number;
   soon?: boolean;
+  img?: string;
 }
 
 const WORKS: Work[] = [
-  { key: "live", no: "I", kicker: "Live · 실시간", seed: 0.4 },
-  { key: "genesis", no: "II", kicker: "Scene · 창세", seed: 1.7 },
-  { key: "pandemic", no: "III", kicker: "Scene · 팬데믹", seed: 2.9 },
-  { key: "trauma", no: "IV", kicker: "Scene · 전쟁", seed: 4.2 },
+  { key: "live", no: "I", kicker: "Live · 실시간", seed: 0.4, img: "/guide/live.jpg" },
+  { key: "genesis", no: "II", kicker: "Scene · 창세", seed: 1.7, img: "/guide/genesis.jpg" },
+  { key: "pandemic", no: "III", kicker: "Scene · 팬데믹", seed: 2.9, img: "/guide/pandemic.jpg" },
+  { key: "trauma", no: "IV", kicker: "Scene · 전쟁", seed: 4.2, img: "/guide/trauma.jpg" },
   { key: "recovery", no: "V", kicker: "Scene · 회복", seed: 5.6, soon: true },
 ];
 
@@ -48,7 +49,8 @@ export default function GuidePage() {
       <section className="mx-auto flex min-h-[86vh] max-w-[880px] flex-col items-center justify-center px-6 py-20 text-center">
         {/* 흑백 신경망 엠블럼 */}
         <div className="relative mb-12 h-40 w-40 overflow-hidden rounded-full ring-1 ring-black/10 sm:h-52 sm:w-52">
-          <ScenarioKeyVisual seed={3.3} idKey="cover" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/guide/cover.jpg" alt="" className="h-full w-full object-cover" />
         </div>
         <p className="mb-7 font-mono text-[10px] tracking-[0.5em] text-black/45">EXHIBITION CATALOG</p>
         <h1 className="font-serif text-[clamp(46px,13vw,104px)] font-extrabold leading-[0.95] tracking-[-0.01em]">
@@ -81,7 +83,12 @@ export default function GuidePage() {
 
               {/* 흑백 신경망 플레이트(흰 지면에 검은 도판) */}
               <figure className="relative aspect-[16/10] w-full overflow-hidden bg-black ring-1 ring-black/10">
-                <ScenarioKeyVisual seed={w.seed} idKey={w.key} />
+                {w.img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={w.img} alt={b.title} className="h-full w-full object-cover" />
+                ) : (
+                  <ScenarioKeyVisual seed={w.seed} idKey={w.key} />
+                )}
               </figure>
 
               {/* 해설 */}
