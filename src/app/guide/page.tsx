@@ -24,14 +24,15 @@ interface Work {
   seed: number;
   soon?: boolean;
   img?: string;
+  pos?: string;
 }
 
 const WORKS: Work[] = [
-  { key: "live", no: "I", kicker: "Live · 실시간", seed: 0.4, img: "/guide/live.jpg" },
+  { key: "live", no: "I", kicker: "Live · 실시간", seed: 0.4, img: "/guide/live.jpg", pos: "object-top" },
   { key: "genesis", no: "II", kicker: "Scene · 창세", seed: 1.7, img: "/guide/genesis.jpg" },
   { key: "pandemic", no: "III", kicker: "Scene · 팬데믹", seed: 2.9, img: "/guide/pandemic.jpg" },
   { key: "trauma", no: "IV", kicker: "Scene · 전쟁", seed: 4.2, img: "/guide/trauma.jpg" },
-  { key: "recovery", no: "V", kicker: "Scene · 회복", seed: 5.6, soon: true },
+  { key: "recovery", no: "V", kicker: "Scene · 회복", seed: 5.6, img: "/guide/recovery.jpg" },
 ];
 
 export default function GuidePage() {
@@ -85,7 +86,7 @@ export default function GuidePage() {
               <figure className="relative aspect-[16/10] w-full overflow-hidden bg-black ring-1 ring-black/10">
                 {w.img ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={w.img} alt={b.title} className="h-full w-full object-cover" />
+                  <img src={w.img} alt={b.title} className={`h-full w-full object-cover ${w.pos ?? ""}`} />
                 ) : (
                   <ScenarioKeyVisual seed={w.seed} idKey={w.key} />
                 )}
@@ -98,16 +99,7 @@ export default function GuidePage() {
                 </p>
                 <div className="space-y-5 text-[15px] leading-[1.95] text-black/85 sm:text-[16px]">
                   {paras.map((p, i) => (
-                    <p
-                      key={i}
-                      className={
-                        i === 0
-                          ? "first-letter:float-left first-letter:mr-2.5 first-letter:font-serif first-letter:text-[60px] first-letter:font-bold first-letter:leading-[0.72] first-letter:text-black"
-                          : ""
-                      }
-                    >
-                      {p}
-                    </p>
+                    <p key={i}>{p}</p>
                   ))}
                 </div>
               </div>
