@@ -3,7 +3,6 @@
 import { BRIEFINGS } from "@/lib/briefings";
 import { useStage } from "@/store/useStage";
 import { usePandemic } from "@/store/usePandemic";
-import { useIdle } from "@/store/useIdle";
 
 /**
  * 전시(자동) 나레이션 — 관조 비트에서만 뜬다(카메라가 빠져 지구가 작아진 상태).
@@ -14,14 +13,13 @@ import { useIdle } from "@/store/useIdle";
 export function ExhibitionNarration() {
   const narrKey = useStage((s) => s.narrKey);
   const dateLabel = usePandemic((s) => s.dateLabel); // 팬데믹: 관조 동안 오늘까지 흐르는 날짜
-  const photo = useIdle((s) => s.photo); // 사진찍기 모드면 나레이션도 치움
   const live = narrKey === "live";
-  const b = !photo && narrKey ? BRIEFINGS[narrKey] : null;
+  const b = narrKey ? BRIEFINGS[narrKey] : null;
 
   return (
     <div
       className={`pointer-events-none fixed inset-x-0 bottom-[4dvh] z-30 flex justify-center px-3 transition-opacity duration-[1100ms] ${
-        narrKey && !photo ? "opacity-100" : "opacity-0"
+        narrKey ? "opacity-100" : "opacity-0"
       }`}
     >
       {b && (

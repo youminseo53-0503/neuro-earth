@@ -5,13 +5,12 @@ import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { EARTH_RADIUS } from "@/lib/geo";
-import { isPhone } from "@/lib/device";
 import { useUI } from "@/store/useUI";
 import { useViz } from "@/store/useViz";
 
-// 모바일은 구 세그먼트를 낮춰 정점 수 ~55% 절감(카메라 거리상 화질 체감 없음)
-const SEG_BODY = isPhone() ? 64 : 96;
-const SEG_SUB = isPhone() ? 48 : 64;
+// 구 세그먼트 — 폰/데스크탑 통일(매끈한 지구)
+const SEG_BODY = 96;
+const SEG_SUB = 64;
 
 const ATMO_VERT = /* glsl */ `
   varying vec3 vNormal;

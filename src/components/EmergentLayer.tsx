@@ -8,7 +8,6 @@ import type { VizConfig } from "@/lib/versions";
 import { PandemicDirector, type PandemicHud } from "@/lib/pandemic";
 import { TraumaDirector, type TraumaHud } from "@/lib/trauma";
 import { EARTH_RADIUS, latLonToVec3 } from "@/lib/geo";
-import { isPhone } from "@/lib/device";
 import { makeSources } from "@/lib/signals/registry";
 import { useViz } from "@/store/useViz";
 import { useUI, BASE_SPIN } from "@/store/useUI";
@@ -31,8 +30,8 @@ const BOMB_HIGH = EARTH_RADIUS * 2.5; // 낙하 시작 고도
 const BOMB_LOW = EARTH_RADIUS * 1.03; // 착탄 지점
 const CONTEMPLATE_DIST = 12; // 관조 비트 — 카메라가 여기까지 빠져 지구/망이 작아짐(나레이션 자리)
 const NODE_SIZE = 0.014;
-// 시냅스 실린더 렌더 상한 — 모바일은 절반(렌더 전용 캡, 엔진 동역학 무관)
-const SYN_CAP = isPhone() ? 6000 : 12000;
+// 시냅스 실린더 렌더 상한 — 폰/데스크탑 통일(렌더 전용 캡, 엔진 동역학 무관)
+const SYN_CAP = 12000;
 const NODE_LV_BIG = [0.3, 0.55, 0.9, 1.35, 1.9]; // 옛 버전 — 큰 공(명확히 구분)
 const NODE_LV_SMALL = [0.2, 0.34, 0.5, 0.68, 0.9]; // '줄여!' 이후 버전 — 작은 공(선이 주인공)
 const THICK_BASE = 0.0033; // 선 굵기 기준(한 단계 얇게)

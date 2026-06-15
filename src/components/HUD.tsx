@@ -2,6 +2,7 @@
 
 import { useMetrics } from "@/store/useMetrics";
 import { useViz } from "@/store/useViz";
+import { useUI } from "@/store/useUI";
 import { useIdle } from "@/store/useIdle";
 import { VERSIONS, isPandemicView } from "@/lib/versions";
 import { modeById } from "@/lib/scenarios";
@@ -17,6 +18,8 @@ export function HUD() {
   const activeMode = isPandemicView(versionId, mode) ? "pandemic" : mode;
   const modeInfo = modeById(activeMode); // 실시간/창세/팬데믹
   const idle = useIdle((s) => s.idle);
+  const earthVisible = useUI((s) => s.earthVisible);
+  const toggleEarth = useUI((s) => s.toggleEarth);
 
   return (
     <div
@@ -49,6 +52,17 @@ export function HUD() {
             버전: {version.label}
           </div>
         )
+      )}
+
+      {/* 지구 토글 — '지구 끄기'는 파란 구체만 끄고 신경 가소성 망은 남긴다. 크롬 뜰 때만 클릭 가능 */}
+      {!idle && (
+        <button
+          onClick={toggleEarth}
+          className="pointer-events-auto mt-3 flex items-center gap-1.5 rounded-md border border-panel-border bg-black/40 px-2.5 py-1.5 text-[11px] font-semibold text-white/75 backdrop-blur-sm transition hover:border-neon-cyan/50 hover:text-neon-cyan"
+        >
+          <span aria-hidden>{earthVisible ? "🌍" : "🧠"}</span>
+          {earthVisible ? "지구 끄기" : "지구 켜기"}
+        </button>
       )}
 
       {/* 상세 수치 — 모바일에선 숨김(제목+모드 배지만 남겨 지구가 주인공) */}

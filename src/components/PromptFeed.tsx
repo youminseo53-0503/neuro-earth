@@ -1,13 +1,10 @@
 "use client";
 
 import { timeline } from "@/data/timeline";
-import { useUI } from "@/store/useUI";
 import { FeedEntry } from "./FeedEntry";
-import { QrBadge } from "./QrBadge";
 
 /** compact: 모바일 바텀시트 안에서 렌더될 때 — 시트가 자체 헤더를 가지므로 헤더 생략 */
 export function PromptFeed({ compact = false }: { compact?: boolean }) {
-  const { earthVisible, toggleEarth } = useUI();
   const pairCount = new Set(timeline.map((m) => m.n)).size;
 
   return (
@@ -25,15 +22,6 @@ export function PromptFeed({ compact = false }: { compact?: boolean }) {
           <p className="truncate text-[10px] text-white/25">
             ※ 민서 발화는 맞춤법·오타를 일부 다듬음
           </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <QrBadge />
-          <button
-            onClick={toggleEarth}
-            className="shrink-0 rounded-lg border border-panel-border px-2.5 py-1.5 text-[clamp(11px,0.8vw,16px)] font-semibold text-white/70 transition hover:border-neon-cyan/50 hover:text-neon-cyan"
-          >
-            {earthVisible ? "지구 끄기" : "지구 켜기"}
-          </button>
         </div>
       </header>
       )}

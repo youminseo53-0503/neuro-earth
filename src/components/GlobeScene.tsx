@@ -84,8 +84,6 @@ export default function GlobeScene() {
   const sun = useMemo(() => getSunDirection(), []);
   const engine = useViz((s) => s.config.engine ?? "grid");
   const gridWave = useViz((s) => s.config.gridWave ?? false);
-  // 모바일 — 렌더 품질만 낮춰 중급 폰에서도 끊김 없이(dpr·전력 정책. 동역학 무관)
-  const mobile = useMemo(() => isPhone(), []);
   // 첫 프레임 카메라 거리도 화면비로 보정 — 세로 진입 시 지구가 짤린 채 한 프레임 번쩍이는 것 방지
   const initZ = useMemo(() => {
     const aspect =
@@ -96,8 +94,9 @@ export default function GlobeScene() {
   return (
     <Canvas
       camera={{ position: [0, 0, initZ], fov: CAMERA_FOV }}
-      dpr={mobile ? [1, 1.5] : [1, 2]}
-      gl={{ powerPreference: mobile ? "low-power" : "high-performance", antialias: !mobile }}
+      // 화질 통일 — 폰도 데스크탑 수준(레티나 2x·AA·고성능). 폰 전용 다운그레이드 제거(실험)
+      dpr={[1, 2]}
+      gl={{ powerPreference: "high-performance", antialias: true }}
     >
       <color attach="background" args={["#050810"]} />
 

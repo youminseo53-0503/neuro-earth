@@ -5,7 +5,6 @@ import { timeline } from "@/data/timeline";
 import { BRIEFINGS, type Briefing } from "@/lib/briefings";
 import { isPandemicView } from "@/lib/versions";
 import { useSheet, type SheetStage } from "@/store/useSheet";
-import { useUI } from "@/store/useUI";
 import { useViz } from "@/store/useViz";
 import { useIdle } from "@/store/useIdle";
 import { PromptFeed } from "./PromptFeed";
@@ -33,7 +32,6 @@ const CONTENT_H: Record<SheetStage, string> = {
  */
 export function MobileFeedSheet() {
   const { stage, mode, setStage, open } = useSheet();
-  const { earthVisible, toggleEarth } = useUI();
   const versionId = useViz((s) => s.versionId);
   const vizMode = useViz((s) => s.mode);
   const idle = useIdle((s) => s.idle);
@@ -129,12 +127,6 @@ export function MobileFeedSheet() {
                   className="rounded-md border border-panel-border px-2 py-1 text-[11px] text-white/60"
                 >
                   {mode === "feed" ? "브리핑" : "보고서"}
-                </button>
-                <button
-                  onClick={toggleEarth}
-                  className="rounded-md border border-panel-border px-2 py-1 text-[11px] text-white/60"
-                >
-                  {earthVisible ? "지구 끄기" : "지구 켜기"}
                 </button>
               </div>
             )}
