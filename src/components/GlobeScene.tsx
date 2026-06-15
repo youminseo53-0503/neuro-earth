@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Stars, PerformanceMonitor } from "@react-three/drei";
+import { OrbitControls, Stars } from "@react-three/drei";
 import { EARTH_RADIUS, CAMERA_FOV, aspectDollyFactor, getSunDirection } from "@/lib/geo";
 import { isPhone } from "@/lib/device";
 import { useViz } from "@/store/useViz";
@@ -84,9 +84,8 @@ export default function GlobeScene() {
   const sun = useMemo(() => getSunDirection(), []);
   const engine = useViz((s) => s.config.engine ?? "grid");
   const gridWave = useViz((s) => s.config.gridWave ?? false);
-  // 기기별 차등 화질 — 시작 2배, 성능 보고 자동으로 1.5~3배(레티나 native) 사이 조절.
-  //   좋은 기기(폰 포함)는 3배까지 올라가 razor-sharp, 버거운 기기는 1.5로 내려 안 끊기게.
-  const [dpr, setDpr] = useState(2);
+  // 화질 리미트 전면 해제 — 기기 native 픽셀비 그대로(캡·적응형 없음). 폰 DPR 3이면 3배로 또렷.
+  const dpr = useMemo(() => (typeof window !== "undefined" ? window.devicePixelRatio : 2), []);
   // 첫 프레임 카메라 거리도 화면비로 보정 — 세로 진입 시 지구가 짤린 채 한 프레임 번쩍이는 것 방지
   const initZ = useMemo(() => {
     const aspect =
@@ -97,17 +96,10 @@ export default function GlobeScene() {
   return (
     <Canvas
       camera={{ position: [0, 0, initZ], fov: CAMERA_FOV }}
-      // 화질 — 폰/데스크탑 통일 + 기기별 적응(아래 PerformanceMonitor가 dpr을 1.5~3로 조절)
+      // 화질 리미트 해제 — 기기 native 픽셀비 그대로(캡·적응형 제거). 가는 선·노드·아치 계단현상 완화
       dpr={dpr}
       gl={{ powerPreference: "high-performance", antialias: true }}
     >
-      {/* 기기 성능 보고 화질 자동 차등 — 좋으면 3배(선명), 버거우면 1.5배(부드럽게). 진동 시 낮게 고정 */}
-      <PerformanceMonitor
-        onIncline={() => setDpr(3)}
-        onDecline={() => setDpr(1.5)}
-        flipflops={3}
-        onFallback={() => setDpr(1.5)}
-      />
       <color attach="background" args={["#050810"]} />
 
       <ambientLight intensity={0.26} />
