@@ -51,12 +51,13 @@ export default function GuidePage() {
       <section className="mx-auto grid max-w-[1280px] items-center gap-12 px-6 pt-24 pb-28 sm:px-10 sm:pt-36 sm:pb-40 lg:grid-cols-[1fr_1.05fr] lg:gap-20">
         <div>
           <p className="mb-10 text-[11px] font-medium tracking-[0.45em] text-black/40">EXHIBITION CATALOG</p>
-          <h1 className="text-[clamp(46px,8.5vw,108px)] font-black leading-[0.9] tracking-[-0.03em]">
-            살아있는
+          <h1 className="text-[clamp(48px,9vw,116px)] font-black leading-[0.86] tracking-[-0.04em]">
+            NEURO
             <br />
-            인공뇌
+            EARTH
           </h1>
-          <p className="mt-10 max-w-[40ch] text-[14px] leading-[1.9] text-black/55">
+          <p className="mt-7 text-[clamp(15px,2.4vw,21px)] font-bold tracking-tight text-black/65">살아있는 인공뇌</p>
+          <p className="mt-8 max-w-[40ch] text-[14px] leading-[1.9] text-black/55">
             지구 스케일의 신경가소성. 실제 지구 데이터가 자극하면 스스로 배선되는 뇌 — 다섯 개의 장면.
           </p>
           <p className="mt-14 text-[11px] tracking-[0.35em] text-black/40">BY 민서</p>
