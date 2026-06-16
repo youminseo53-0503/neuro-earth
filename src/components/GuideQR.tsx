@@ -19,14 +19,14 @@ export function GuideQR() {
       href="/guide"
       target="_blank"
       rel="noopener"
-      className="group pointer-events-auto absolute bottom-4 left-4 z-20 flex flex-col items-center gap-1.5 opacity-70 transition-opacity hover:opacity-100"
+      className="group pointer-events-auto absolute bottom-3 left-3 z-20 flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100"
       title="작품 도록(메뉴얼) 열기"
     >
-      <div className="rounded-lg bg-white p-1.5 shadow-lg ring-1 ring-black/20">
-        <QRCodeSVG value={url} size={56} bgColor="#ffffff" fgColor="#050810" level="M" />
+      <div className="rounded-md bg-white p-1 ring-1 ring-black/10">
+        <QRCodeSVG value={url} size={44} bgColor="#ffffff" fgColor="#050810" level="M" />
       </div>
-      <span className="font-mono text-[8.5px] tracking-[0.25em] text-white/55 group-hover:text-neon-cyan">
-        SCAN · 작품 도록
+      <span className="font-mono text-[7.5px] tracking-[0.2em] text-white/40 group-hover:text-neon-cyan">
+        SCAN · 도록
       </span>
     </a>
   );
