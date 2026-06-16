@@ -120,16 +120,23 @@ export function MobileFeedSheet() {
                       : "팬데믹"}
               </span>
             </span>
-            {stage !== "peek" && (
-              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              {stage !== "peek" && (
                 <button
                   onClick={() => open(mode === "feed" ? "briefing" : "feed", stage)}
                   className="rounded-md border border-panel-border px-2 py-1 text-[11px] text-white/60"
                 >
                   {mode === "feed" ? "브리핑" : "보고서"}
                 </button>
-              </div>
-            )}
+              )}
+              {/* 폰 전용 도록 진입 — QR은 자기 화면을 못 찍으니, 개발로그 시트 헤더에 탭 버튼으로 */}
+              <a
+                href="/guide"
+                className="rounded-md border border-neon-cyan/40 bg-neon-cyan/5 px-2.5 py-1 text-[11px] font-semibold text-neon-cyan/90"
+              >
+                📖 작품 도록
+              </a>
+            </div>
           </div>
           {stage === "peek" && (
             <p className="mt-1 truncate text-[11px] text-white/40">{preview}</p>

@@ -19,7 +19,7 @@ export function GuideQR() {
       href="/guide"
       target="_blank"
       rel="noopener"
-      className="group pointer-events-auto absolute bottom-3 left-3 z-20 flex flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100"
+      className="group pointer-events-auto absolute bottom-3 left-3 z-20 hidden flex-col items-center gap-1 opacity-40 transition-opacity hover:opacity-100 lg:flex"
       title="작품 도록(메뉴얼) 열기"
     >
       <div className="rounded-md bg-white p-1 ring-1 ring-black/10">
